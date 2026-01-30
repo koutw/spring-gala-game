@@ -1,0 +1,16 @@
+# Render 部署配置
+# 參考: https://render.com/docs/blueprint-spec
+
+services:
+  - type: web
+    name: spring-gala-game
+    runtime: node
+    plan: free
+    buildCommand: cd client && npm install && npm run build && cd ../server && npm install
+    startCommand: cd server && npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: NODE_VERSION
+        value: 18.19.0
+    healthCheckPath: /api/health

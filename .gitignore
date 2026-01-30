@@ -1,0 +1,7 @@
+# 忽略檔案
+node_modules/
+dist/
+.DS_Store
+*.log
+.env
+.env.local
