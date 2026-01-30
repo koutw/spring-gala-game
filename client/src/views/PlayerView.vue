@@ -7,49 +7,37 @@
           <div class="game-icon">🏇</div>
           <h1>加入遊戲</h1>
         </div>
-        
+
         <form @submit.prevent="joinGame" class="join-form">
           <div class="form-group">
             <label>暱稱</label>
-            <input 
-              v-model="nickname" 
-              class="input" 
-              placeholder="輸入你的暱稱"
-              maxlength="20"
-              required
-            />
+            <input v-model="nickname" class="input" placeholder="輸入你的暱稱" maxlength="20" required />
           </div>
-          
+
           <div class="form-group">
             <label>選擇隊伍</label>
             <div class="team-grid">
-              <button
-                v-for="team in teams"
-                :key="team.id"
-                type="button"
-                class="team-btn"
-                :class="{ selected: selectedTeam === team.id }"
-                :style="{ '--team-color': team.color }"
-                @click="selectedTeam = team.id"
-              >
+              <button v-for="team in teams" :key="team.id" type="button" class="team-btn"
+                :class="{ selected: selectedTeam === team.id }" :style="{ '--team-color': team.color }"
+                @click="selectedTeam = team.id">
                 <span class="team-color-dot" :style="{ background: team.color }"></span>
                 {{ team.name }}
               </button>
             </div>
           </div>
-          
+
           <button type="submit" class="btn btn-primary btn-large w-full">
             加入遊戲 🎮
           </button>
         </form>
-        
+
         <p class="player-count">
           <span class="status-dot online"></span>
           目前 {{ gameStore.playerCount }} 人在線
         </p>
       </div>
     </div>
-    
+
     <!-- Game Screen -->
     <div v-else class="game-screen">
       <!-- Waiting State -->
@@ -66,7 +54,7 @@
           </div>
         </div>
       </div>
-      
+
       <!-- Phase 1: Horse Racing -->
       <div v-else-if="gameStore.gamePhase === 'phase1'" class="phase1-screen">
         <div class="phase1-header">
@@ -78,7 +66,7 @@
             第 <span class="rank-number">{{ gameStore.rank }}</span> 名
           </div>
         </div>
-        
+
         <div class="tap-area" @click="handleTap" @touchstart.prevent="handleTap">
           <div class="tap-button btn-game">
             <span class="tap-icon">👆</span>
@@ -86,7 +74,7 @@
           </div>
           <p class="tap-hint">快速點擊或搖晃手機累積分數！</p>
         </div>
-        
+
         <div class="phase1-footer">
           <div class="team-info">
             <span class="team-dot" :style="{ background: gameStore.team?.color }"></span>
@@ -94,36 +82,32 @@
           </div>
         </div>
       </div>
-      
+
       <!-- Phase 1 Result -->
       <div v-else-if="gameStore.gamePhase === 'phase1_result'" class="result-screen">
         <div class="result-content animate-scaleIn">
           <div class="result-icon">🏁</div>
           <h1>賽馬結束！</h1>
-          
+
           <div class="your-result">
             <p>你的分數</p>
             <div class="score-display">{{ gameStore.score }}</div>
             <p class="rank-info">第 <span class="rank-highlight">{{ gameStore.rank }}</span> 名</p>
           </div>
-          
+
           <div class="top-players">
             <h3>🏆 前三名</h3>
-            <div 
-              v-for="(player, index) in gameStore.leaderboard?.slice(0, 3)" 
-              :key="player.id"
-              class="top-player-item"
-            >
+            <div v-for="(player, index) in gameStore.leaderboard?.slice(0, 3)" :key="player.id" class="top-player-item">
               <span class="rank-badge" :class="['gold', 'silver', 'bronze'][index]">{{ index + 1 }}</span>
               <span class="player-name">{{ player.nickname }}</span>
               <span class="player-score">{{ player.score }}</span>
             </div>
           </div>
-          
+
           <p class="waiting-next">等待主持人進入下一階段...</p>
         </div>
       </div>
-      
+
       <!-- Phase 2: Quiz -->
       <div v-else-if="gameStore.gamePhase === 'phase2'" class="phase2-screen">
         <div v-if="gameStore.currentQuestion" class="question-container animate-fadeIn">
@@ -131,65 +115,50 @@
             <span class="question-number">
               Q{{ gameStore.currentQuestion.questionNumber }}
             </span>
-            <span 
-              v-if="gameStore.currentQuestion.type === 'star'" 
-              class="question-type star"
-            >
+            <span v-if="gameStore.currentQuestion.type === 'star'" class="question-type star">
               ⭐ 無敵星星
             </span>
-            <span 
-              v-else-if="gameStore.currentQuestion.type === 'banana'" 
-              class="question-type banana"
-            >
+            <span v-else-if="gameStore.currentQuestion.type === 'banana'" class="question-type banana">
               🍌 香蕉皮
             </span>
           </div>
-          
+
           <h2 class="question-text">{{ gameStore.currentQuestion.text }}</h2>
-          
+
           <div class="options-list">
-            <div
-              v-for="(option, index) in gameStore.currentQuestion.options"
-              :key="index"
-              class="quiz-option"
-              :class="{
-                selected: gameStore.selectedAnswer === index,
-                correct: gameStore.questionResult && gameStore.currentQuestion.correctIndex === index,
-                wrong: gameStore.questionResult && gameStore.selectedAnswer === index && !gameStore.questionResult.correct
-              }"
-              @click="selectAnswer(index)"
-            >
+            <div v-for="(option, index) in gameStore.currentQuestion.options" :key="index" class="quiz-option" :class="{
+              selected: gameStore.selectedAnswer === index,
+              correct: gameStore.questionResult && gameStore.currentQuestion.correctIndex === index,
+              wrong: gameStore.questionResult && gameStore.selectedAnswer === index && !gameStore.questionResult.correct
+            }" @click="selectAnswer(index)">
               <span class="quiz-option-label">{{ optionLabels[index] }}</span>
               <span class="quiz-option-text">{{ option }}</span>
-              <span v-if="gameStore.questionResult && gameStore.currentQuestion.correctIndex === index" class="correct-icon">✓</span>
+              <span v-if="gameStore.questionResult && gameStore.currentQuestion.correctIndex === index"
+                class="correct-icon">✓</span>
             </div>
           </div>
-          
+
           <div v-if="gameStore.answered" class="answered-status">
             <span class="check-icon">✓</span> 已作答
           </div>
         </div>
-        
+
         <div v-else class="waiting-question animate-fadeIn">
           <div class="waiting-icon">📝</div>
           <h2>準備答題</h2>
           <p>等待下一題...</p>
         </div>
       </div>
-      
+
       <!-- Finished -->
       <div v-else-if="gameStore.gamePhase === 'finished'" class="finished-screen">
         <div class="finished-content animate-scaleIn">
           <div class="trophy-icon">🏆</div>
           <h1>遊戲結束!</h1>
           <p>感謝參與</p>
-          
+
           <div class="final-rankings">
-            <div 
-              v-for="(team, index) in gameStore.teams?.slice(0, 3)" 
-              :key="team.id"
-              class="ranking-item"
-            >
+            <div v-for="(team, index) in gameStore.teams?.slice(0, 3)" :key="team.id" class="ranking-item">
               <span class="rank-badge" :class="['gold', 'silver', 'bronze'][index]">
                 {{ index + 1 }}
               </span>
@@ -240,19 +209,19 @@ function handleTap() {
 
 function handleShake(event) {
   if (gameStore.gamePhase !== 'phase1' || !gameStore.isRunning) return
-  
+
   const acceleration = event.accelerationIncludingGravity
   if (!acceleration) return
-  
+
   const deltaX = Math.abs(acceleration.x - lastAcceleration.x)
   const deltaY = Math.abs(acceleration.y - lastAcceleration.y)
   const deltaZ = Math.abs(acceleration.z - lastAcceleration.z)
-  
+
   if (deltaX > shakeThreshold || deltaY > shakeThreshold || deltaZ > shakeThreshold) {
     const intensity = Math.max(deltaX, deltaY, deltaZ) / shakeThreshold
     gameStore.sendAction('shake', intensity)
   }
-  
+
   lastAcceleration = { x: acceleration.x, y: acceleration.y, z: acceleration.z }
 }
 
@@ -264,8 +233,8 @@ function selectAnswer(index) {
 
 onMounted(() => {
   // Request device motion permission (iOS 13+)
-  if (typeof DeviceMotionEvent !== 'undefined' && 
-      typeof DeviceMotionEvent.requestPermission === 'function') {
+  if (typeof DeviceMotionEvent !== 'undefined' &&
+    typeof DeviceMotionEvent.requestPermission === 'function') {
     // iOS 13+ requires permission
     document.addEventListener('click', async () => {
       try {
@@ -291,16 +260,24 @@ onUnmounted(() => {
 <style scoped>
 .player-view {
   min-height: 100vh;
+  min-height: 100dvh;
+  /* Dynamic viewport height for mobile */
   background: var(--gradient-dark);
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
 }
 
 /* Join Screen */
 .join-screen {
   min-height: 100vh;
+  min-height: 100dvh;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: var(--spacing-lg);
+  padding-top: env(safe-area-inset-top, var(--spacing-lg));
+  padding-bottom: env(safe-area-inset-bottom, var(--spacing-lg));
 }
 
 .join-card {
@@ -400,16 +377,20 @@ onUnmounted(() => {
 /* Game Screen */
 .game-screen {
   min-height: 100vh;
+  min-height: 100dvh;
 }
 
 /* Waiting Screen */
 .waiting-screen {
   min-height: 100vh;
+  min-height: 100dvh;
   display: flex;
   align-items: center;
   justify-content: center;
   text-align: center;
   padding: var(--spacing-lg);
+  padding-top: env(safe-area-inset-top, var(--spacing-lg));
+  padding-bottom: env(safe-area-inset-bottom, var(--spacing-lg));
 }
 
 .waiting-icon {
@@ -451,9 +432,12 @@ onUnmounted(() => {
 /* Phase 1 Screen */
 .phase1-screen {
   min-height: 100vh;
+  min-height: 100dvh;
   display: flex;
   flex-direction: column;
   padding: var(--spacing-lg);
+  padding-top: env(safe-area-inset-top, var(--spacing-lg));
+  padding-bottom: env(safe-area-inset-bottom, var(--spacing-lg));
 }
 
 .phase1-header {
@@ -523,9 +507,13 @@ onUnmounted(() => {
 /* Phase 2 Screen */
 .phase2-screen {
   min-height: 100vh;
+  min-height: 100dvh;
   padding: var(--spacing-lg);
+  padding-top: env(safe-area-inset-top, var(--spacing-lg));
+  padding-bottom: env(safe-area-inset-bottom, var(--spacing-lg));
   display: flex;
   flex-direction: column;
+  overflow-y: auto;
 }
 
 .question-container {
@@ -565,9 +553,10 @@ onUnmounted(() => {
 }
 
 .question-text {
-  font-size: 1.5rem;
+  font-size: 1.25rem;
   line-height: 1.4;
-  margin-bottom: var(--spacing-xl);
+  margin-bottom: var(--spacing-lg);
+  word-break: break-word;
 }
 
 .options-list {
@@ -615,10 +604,14 @@ onUnmounted(() => {
 /* Finished Screen */
 .finished-screen {
   min-height: 100vh;
+  min-height: 100dvh;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: var(--spacing-lg);
+  padding-top: env(safe-area-inset-top, var(--spacing-lg));
+  padding-bottom: env(safe-area-inset-bottom, var(--spacing-lg));
+  overflow-y: auto;
 }
 
 .finished-content {
@@ -667,10 +660,14 @@ onUnmounted(() => {
 /* Phase 1 Result Screen */
 .result-screen {
   min-height: 100vh;
+  min-height: 100dvh;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: var(--spacing-lg);
+  padding-top: env(safe-area-inset-top, var(--spacing-lg));
+  padding-bottom: env(safe-area-inset-bottom, var(--spacing-lg));
+  overflow-y: auto;
 }
 
 .result-content {
@@ -680,14 +677,15 @@ onUnmounted(() => {
 }
 
 .result-icon {
-  font-size: 5rem;
+  font-size: 4rem;
   margin-bottom: var(--spacing-lg);
 }
 
 .result-content h1 {
-  font-size: 2rem;
+  font-size: 1.75rem;
   background: var(--gradient-gold);
   -webkit-background-clip: text;
+  background-clip: text;
   -webkit-text-fill-color: transparent;
   margin-bottom: var(--spacing-xl);
 }
@@ -695,8 +693,8 @@ onUnmounted(() => {
 .your-result {
   background: var(--bg-card);
   border-radius: var(--border-radius-lg);
-  padding: var(--spacing-xl);
-  margin-bottom: var(--spacing-xl);
+  padding: var(--spacing-lg);
+  margin-bottom: var(--spacing-lg);
 }
 
 .your-result p {
