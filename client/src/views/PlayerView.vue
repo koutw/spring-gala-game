@@ -95,6 +95,35 @@
         </div>
       </div>
       
+      <!-- Phase 1 Result -->
+      <div v-else-if="gameStore.gamePhase === 'phase1_result'" class="result-screen">
+        <div class="result-content animate-scaleIn">
+          <div class="result-icon">🏁</div>
+          <h1>賽馬結束！</h1>
+          
+          <div class="your-result">
+            <p>你的分數</p>
+            <div class="score-display">{{ gameStore.score }}</div>
+            <p class="rank-info">第 <span class="rank-highlight">{{ gameStore.rank }}</span> 名</p>
+          </div>
+          
+          <div class="top-players">
+            <h3>🏆 前三名</h3>
+            <div 
+              v-for="(player, index) in gameStore.leaderboard?.slice(0, 3)" 
+              :key="player.id"
+              class="top-player-item"
+            >
+              <span class="rank-badge" :class="['gold', 'silver', 'bronze'][index]">{{ index + 1 }}</span>
+              <span class="player-name">{{ player.nickname }}</span>
+              <span class="player-score">{{ player.score }}</span>
+            </div>
+          </div>
+          
+          <p class="waiting-next">等待主持人進入下一階段...</p>
+        </div>
+      </div>
+      
       <!-- Phase 2: Quiz -->
       <div v-else-if="gameStore.gamePhase === 'phase2'" class="phase2-screen">
         <div v-if="gameStore.currentQuestion" class="question-container animate-fadeIn">
@@ -633,5 +662,90 @@ onUnmounted(() => {
 .team-score {
   color: var(--accent-alt);
   font-weight: 700;
+}
+
+/* Phase 1 Result Screen */
+.result-screen {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--spacing-lg);
+}
+
+.result-content {
+  text-align: center;
+  max-width: 400px;
+  width: 100%;
+}
+
+.result-icon {
+  font-size: 5rem;
+  margin-bottom: var(--spacing-lg);
+}
+
+.result-content h1 {
+  font-size: 2rem;
+  background: var(--gradient-gold);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  margin-bottom: var(--spacing-xl);
+}
+
+.your-result {
+  background: var(--bg-card);
+  border-radius: var(--border-radius-lg);
+  padding: var(--spacing-xl);
+  margin-bottom: var(--spacing-xl);
+}
+
+.your-result p {
+  color: var(--text-secondary);
+  margin-bottom: var(--spacing-sm);
+}
+
+.rank-info {
+  margin-top: var(--spacing-md);
+}
+
+.rank-highlight {
+  color: var(--accent-alt);
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+
+.top-players {
+  margin-bottom: var(--spacing-xl);
+}
+
+.top-players h3 {
+  margin-bottom: var(--spacing-md);
+  color: var(--text-secondary);
+}
+
+.top-player-item {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+  padding: var(--spacing-md);
+  background: var(--bg-card);
+  border-radius: var(--border-radius-md);
+  margin-bottom: var(--spacing-sm);
+}
+
+.top-player-item .player-name {
+  flex: 1;
+  text-align: left;
+}
+
+.top-player-item .player-score {
+  color: var(--accent-alt);
+  font-weight: 600;
+}
+
+.waiting-next {
+  color: var(--text-muted);
+  font-size: 0.875rem;
+  animation: pulse 2s ease infinite;
 }
 </style>

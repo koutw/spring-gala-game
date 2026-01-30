@@ -104,8 +104,10 @@ export const useGameStore = defineStore('game', () => {
     })
 
     socket.value.on('phase1:end', (data) => {
+      gamePhase.value = 'phase1_result'
       isRunning.value = false
       leaderboard.value = data.leaderboard
+      remainingTime.value = 0
     })
 
     // Phase 2 events
