@@ -1,0 +1,13 @@
+{
+  "name": "artillery-tests",
+  "version": "1.0.0",
+  "description": "Artillery load tests for Spring Gala Game",
+  "scripts": {
+    "test:quick": "artillery run load-test-quick.yml",
+    "test:full": "artillery run load-test.yml"
+  },
+  "dependencies": {
+    "artillery": "2.0.21",
+    "artillery-engine-socketio-v3": "^1.2.0"
+  }
+}

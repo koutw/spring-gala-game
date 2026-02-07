@@ -6,10 +6,16 @@
         <h1 class="event-title">🏇 2026 Spring Gala</h1>
         <h2 class="event-subtitle">數位賽馬大賽</h2>
 
-        <div class="teams-preview">
-          <div v-for="team in teamsInfo" :key="team.id" class="team-preview-card"
-            :style="{ '--team-color': team.color }">
-            <div class="team-preview-header">
+        <p class="scan-hint">📱 掃描 QR Code 加入隊伍</p>
+
+        <div class="qr-section">
+          <div v-for="team in teamsInfo" :key="team.id" class="qr-card" :style="{ '--team-color': team.color }">
+            <div class="qr-wrapper">
+              <QRCodeVue3 :value="getTeamUrl(team.id)" :size="180" :margin="2"
+                :dotsOptions="{ color: team.color, type: 'rounded' }" :cornersSquareOptions="{ color: team.color }"
+                :cornersDotOptions="{ color: team.color }" :backgroundOptions="{ color: '#ffffff' }" />
+            </div>
+            <div class="qr-team-info">
               <span class="team-dot"></span>
               <span class="team-name">{{ team.name }}</span>
             </div>
@@ -170,6 +176,7 @@
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
 import { useGameStore } from '../stores/game'
+import QRCodeVue3 from 'qrcode.vue'
 
 const gameStore = useGameStore()
 const screenContainer = ref(null)
@@ -180,6 +187,12 @@ const teamsInfo = [
   { id: 'yellow', name: '黃隊', color: '#EAB308' },
   { id: 'red', name: '紅隊', color: '#EF4444' }
 ]
+
+// Generate QR code URL for each team
+function getTeamUrl(teamId) {
+  const baseUrl = window.location.origin
+  return `${baseUrl}/player?team=${teamId}`
+}
 
 // Current bonus state
 const currentBonusStage = computed(() => gameStore.bonusStage)
@@ -275,7 +288,55 @@ onMounted(() => {
 .event-subtitle {
   font-size: 2rem;
   color: var(--text-secondary);
-  margin-bottom: var(--spacing-2xl);
+  margin-bottom: var(--spacing-lg);
+}
+
+.scan-hint {
+  font-size: 1.5rem;
+  color: var(--text-secondary);
+  margin-bottom: var(--spacing-xl);
+}
+
+/* QR Code Section */
+.qr-section {
+  display: flex;
+  justify-content: center;
+  gap: var(--spacing-2xl);
+  margin-bottom: var(--spacing-xl);
+}
+
+.qr-card {
+  padding: var(--spacing-lg);
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: var(--border-radius-lg);
+  border: 3px solid var(--team-color);
+  text-align: center;
+}
+
+.qr-wrapper {
+  padding: var(--spacing-md);
+  background: white;
+  border-radius: var(--border-radius-md);
+  margin-bottom: var(--spacing-md);
+}
+
+.qr-team-info {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-sm);
+  margin-bottom: var(--spacing-xs);
+}
+
+.qr-card .team-name {
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+
+.qr-card .team-count {
+  font-size: 1.25rem;
+  font-weight: 900;
+  color: var(--team-color);
 }
 
 .teams-preview {

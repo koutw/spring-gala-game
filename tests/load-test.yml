@@ -1,0 +1,155 @@
+# 春酒遊戲負載測試配置
+# 使用方式：artillery run load-test.yml
+# 遊戲流程：Round 1 (點擊) → Round 2 暖身 (感測器授權) → Round 2 (搖晃)
+
+config:
+  target: "https://spring-gala-game.onrender.com"
+  phases:
+    # 階段 1: 暖機 - 30 秒內逐漸加入 100 人
+    - name: "Warm up"
+      duration: 30
+      arrivalRate: 3
+      maxVusers: 100
+    
+    # 階段 2: 爬升 - 60 秒內加到 300 人
+    - name: "Ramp up"
+      duration: 60
+      arrivalRate: 5
+      maxVusers: 300
+    
+    # 階段 3: 全速 - 60 秒內達到 600 人
+    - name: "Full load"
+      duration: 60
+      arrivalRate: 10
+      maxVusers: 600
+    
+    # 階段 4: 維持 - 維持 600 人 2 分鐘
+    - name: "Sustained load"
+      duration: 120
+      arrivalRate: 2
+      maxVusers: 600
+
+  engines:
+    socketio-v3:
+      transports: ["websocket"]
+
+  # 自訂變數
+  variables:
+    teams:
+      - "blue"
+      - "yellow"
+      - "red"
+
+scenarios:
+  # 場景 1: 完整遊戲流程 (Round 1 + Round 2)
+  - name: "Full Game Flow"
+    weight: 80  # 80% 的使用者走完整流程
+    engine: socketio-v3
+    flow:
+      # 連線加入遊戲
+      - emit:
+          channel: "player:join"
+          data:
+            employeeId: "LoadTest_{{ $randomNumber(1000, 9999) }}"
+            teamId: "{{ $randomString(teams) }}"
+      
+      # 等待遊戲開始 (模擬等待)
+      - think: 5
+      
+      # Round 1: 瘋狂點擊 (模擬 30 秒)
+      - loop:
+        - emit:
+            channel: "player:action"
+            data:
+              type: "tap"
+        - think: 0.1  # 每 100ms 點擊一次 = 每秒 10 次
+        count: 300      # 30 秒
+      
+      # 等待 Round 1 結束
+      - think: 5
+      
+      # Round 2 暖身階段 (感測器授權) - 等待時間
+      - think: 10
+      
+      # Round 2: 搖晃手機 (模擬 20 秒)
+      - loop:
+        - emit:
+            channel: "player:action"
+            data:
+              type: "shake"
+              gyroZ: "{{ $randomNumber(-5, 5) }}"
+              accelY: "{{ $randomNumber(15, 25) }}"
+        - think: 0.1  # 每 100ms 搖晃一次 = 每秒 10 次
+        count: 200      # 20 秒
+      
+      # 等待遊戲結束
+      - think: 10
+
+  # 場景 2: 只有 Round 1 (快速點擊者)
+  - name: "Round 1 Clicker"
+    weight: 10
+    engine: socketio-v3
+    flow:
+      - emit:
+          channel: "player:join"
+          data:
+            employeeId: "Clicker_{{ $randomNumber(1000, 9999) }}"
+            teamId: "{{ $randomString(teams) }}"
+      
+      - think: 3
+      
+      # 超快速點擊
+      - loop:
+        - emit:
+            channel: "player:action"
+            data:
+              type: "tap"
+        - think: 0.05  # 每 50ms 點擊 = 每秒 20 次
+        count: 600
+      
+      - think: 30
+
+  # 場景 3: 只有 Round 2 (搖晃測試者)
+  - name: "Round 2 Shaker"
+    weight: 5
+    engine: socketio-v3
+    flow:
+      - emit:
+          channel: "player:join"
+          data:
+            employeeId: "Shaker_{{ $randomNumber(1000, 9999) }}"
+            teamId: "{{ $randomString(teams) }}"
+      
+      - think: 60  # 等待 Round 2
+      
+      # 搖晃測試
+      - loop:
+        - emit:
+            channel: "player:action"
+            data:
+              type: "shake"
+              gyroZ: "{{ $randomNumber(-5, 5) }}"
+              accelY: "{{ $randomNumber(15, 25) }}"
+        - think: 0.1
+        count: 400
+      
+      - think: 30
+
+  # 場景 4: 觀望者 (只連線不互動)
+  - name: "Observer"
+    weight: 5
+    engine: socketio-v3
+    flow:
+      - emit:
+          channel: "player:join"
+          data:
+            employeeId: "Observer_{{ $randomNumber(1000, 9999) }}"
+            teamId: "{{ $randomString(teams) }}"
+      
+      # 只是連著，偶爾互動
+      - think: 60
+      - emit:
+          channel: "player:action"
+          data:
+            type: "tap"
+      - think: 120

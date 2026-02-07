@@ -1,0 +1,68 @@
+# 快速負載測試 - 輕量版
+# 用於快速驗證，只需 30 秒
+# 遊戲流程：Round 1 (點擊) → Round 2 暖身 → Round 2 (搖晃)
+
+config:
+  target: "https://spring-gala-game.onrender.com"
+  phases:
+    - name: "Quick test"
+      duration: 30
+      arrivalRate: 20
+      maxVusers: 100
+
+  engines:
+    socketio-v3:
+      transports: ["websocket"]
+
+  variables:
+    teams:
+      - "blue"
+      - "yellow"
+      - "red"
+
+scenarios:
+  # 場景 1: 快速點擊測試 (Round 1)
+  - name: "Quick Clicker"
+    weight: 60
+    engine: socketio-v3
+    flow:
+      - emit:
+          channel: "player:join"
+          data:
+            employeeId: "Quick_{{ $randomNumber(1, 9999) }}"
+            teamId: "{{ $randomString(teams) }}"
+      
+      - think: 1
+      
+      # Round 1 點擊
+      - loop:
+        - emit:
+            channel: "player:action"
+            data:
+              type: "tap"
+        - think: 0.1
+        count: 200
+
+  # 場景 2: 快速搖晃測試 (Round 2)
+  - name: "Quick Shaker"
+    weight: 40
+    engine: socketio-v3
+    flow:
+      - emit:
+          channel: "player:join"
+          data:
+            employeeId: "Shake_{{ $randomNumber(1, 9999) }}"
+            teamId: "{{ $randomString(teams) }}"
+      
+      - think: 1
+      
+      # Round 2 搖晃
+      - loop:
+        - emit:
+            channel: "player:action"
+            data:
+              type: "shake"
+              gyroZ: "{{ $randomNumber(-5, 5) }}"
+              accelY: "{{ $randomNumber(15, 25) }}"
+        - think: 0.1
+        count: 200
