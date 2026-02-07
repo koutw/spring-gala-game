@@ -6,7 +6,7 @@
         {{ gameStore.connected ? '已連線' : '連線中...' }}
       </div>
     </div>
-    
+
     <div class="admin-content">
       <!-- Game Status Panel -->
       <div class="panel status-panel">
@@ -15,6 +15,10 @@
           <div class="status-item">
             <span class="status-label">當前階段</span>
             <span class="status-value">{{ phaseLabel }}</span>
+          </div>
+          <div class="status-item">
+            <span class="status-label">當前 Round</span>
+            <span class="status-value">{{ gameStore.currentRound || '-' }}</span>
           </div>
           <div class="status-item">
             <span class="status-label">遊戲狀態</span>
@@ -28,141 +32,137 @@
           </div>
         </div>
       </div>
-      
+
+      <!-- Settings Panel -->
+      <div class="panel settings-panel" :class="{ locked: gameStore.isRunning }">
+        <h2>
+          ⚙️ 遊戲設定
+          <span v-if="gameStore.isRunning" class="lock-badge">🔒 已鎖定</span>
+        </h2>
+
+        <div class="settings-grid">
+          <div class="setting-item">
+            <label>Round 1 總分</label>
+            <input v-model.number="settings.round1TargetScore" type="number" min="10000" max="100000" step="5000"
+              :disabled="gameStore.isRunning" />
+            <span class="setting-hint">Bonus: {{ Math.round(settings.round1TargetScore * 0.5) }}, {{
+              Math.round(settings.round1TargetScore * 0.75) }}</span>
+          </div>
+
+          <div class="setting-item">
+            <label>Round 2 總分</label>
+            <input v-model.number="settings.round2TargetScore" type="number" min="5000" max="50000" step="2500"
+              :disabled="gameStore.isRunning" />
+            <span class="setting-hint">Bonus: {{ Math.round(settings.round2TargetScore * 0.6) }}</span>
+          </div>
+
+          <div class="setting-item">
+            <label>排行榜顯示人數</label>
+            <input v-model.number="settings.leaderboardSize" type="number" min="5" max="50"
+              :disabled="gameStore.isRunning" />
+          </div>
+        </div>
+
+        <button class="btn btn-secondary" @click="saveSettings" :disabled="gameStore.isRunning">
+          {{ gameStore.isRunning ? '🔒 遊戲中不可調整' : '儲存設定 💾' }}
+        </button>
+      </div>
+
       <!-- Game Controls -->
       <div class="panel control-panel">
         <h2>🎯 遊戲控制</h2>
-        
+
         <div class="control-section">
           <h3>第一階段：數位賽馬</h3>
-          <div class="control-row">
-            <label>
-              遊戲時間（秒）
-              <input v-model.number="phase1Duration" type="number" min="10" max="120" />
-            </label>
-            <label>
-              勝出人數
-              <input v-model.number="phase1Winners" type="number" min="1" max="50" />
-            </label>
+
+          <div class="round-controls">
+            <button class="btn btn-primary btn-large" @click="startRound(1)"
+              :disabled="gameStore.isRunning || gameStore.gamePhase === 'round1'">
+              開始 Round 1（點擊）🏇
+            </button>
+
+            <button class="btn btn-warning btn-large" @click="startWarmup"
+              :disabled="gameStore.isRunning || gameStore.gamePhase !== 'round1_result'">
+              Round 2 暖身（授權感測器）📳
+            </button>
+
+            <button class="btn btn-primary btn-large" @click="startRound(2)"
+              :disabled="gameStore.isRunning || !['round1_result', 'round2_warmup'].includes(gameStore.gamePhase)">
+              開始 Round 2（搖晃）🔥
+            </button>
           </div>
-          <button 
-            class="btn btn-primary" 
-            @click="startPhase1"
-            :disabled="gameStore.isRunning"
-          >
-            開始賽馬 🏇
-          </button>
         </div>
-        
+
         <div class="control-section">
-          <h3>第二階段：問答遊戲</h3>
-          <div class="control-row">
-            <label>
-              每題時間（秒）
-              <input v-model.number="phase2TimePerQuestion" type="number" min="5" max="60" />
-            </label>
+          <h3>排行榜</h3>
+          <div class="leaderboard-controls">
+            <button class="btn btn-secondary" @click="showLeaderboard('round1')">
+              Round 1 排行榜
+            </button>
+            <button class="btn btn-secondary" @click="showLeaderboard('total')">
+              總積分排行榜
+            </button>
           </div>
-          <button 
-            class="btn btn-secondary" 
-            @click="startPhase2"
-            :disabled="gameStore.isRunning"
-          >
-            開始問答 📝
-          </button>
         </div>
-        
+
         <div class="control-section">
-          <button 
-            class="btn btn-danger" 
-            @click="stopGame"
-            :disabled="!gameStore.isRunning"
-          >
+          <button class="btn btn-danger btn-large" @click="stopGame" :disabled="!gameStore.isRunning">
             停止遊戲 ⛔
           </button>
         </div>
-      </div>
-      
-      <!-- Question Manager -->
-      <div class="panel question-panel">
-        <h2>📝 題目管理</h2>
-        
-        <div class="question-form">
-          <div class="form-group">
-            <label>題目</label>
-            <input v-model="newQuestion.text" class="input" placeholder="輸入題目內容" />
+
+        <div class="control-section reset-section">
+          <h3>遊戲場次</h3>
+          <div class="game-id-display">
+            <span class="game-id-label">當前 ID:</span>
+            <code class="game-id-value">{{ gameStore.gameId || '-' }}</code>
           </div>
-          
-          <div class="form-group">
-            <label>選項</label>
-            <div class="options-inputs">
-              <input 
-                v-for="(_, index) in newQuestion.options" 
-                :key="index"
-                v-model="newQuestion.options[index]"
-                class="input"
-                :placeholder="'選項 ' + optionLabels[index]"
-              />
-            </div>
-          </div>
-          
-          <div class="form-row">
-            <div class="form-group">
-              <label>正確答案</label>
-              <select v-model.number="newQuestion.correctIndex" class="input">
-                <option v-for="(label, index) in optionLabels" :key="index" :value="index">
-                  {{ label }}
-                </option>
-              </select>
-            </div>
-            
-            <div class="form-group">
-              <label>題目類型</label>
-              <select v-model="newQuestion.type" class="input">
-                <option value="normal">一般題</option>
-                <option value="star">⭐ 無敵星星</option>
-                <option value="banana">🍌 香蕉皮</option>
-              </select>
-            </div>
-          </div>
-          
-          <button class="btn btn-primary" @click="sendQuestion">
-            發送題目 📤
+          <button class="btn btn-warning btn-large" @click="resetGame" :disabled="gameStore.isRunning">
+            🔄 重置遊戲（開始新場次）
           </button>
-        </div>
-        
-        <div class="question-presets">
-          <h3>預設題目</h3>
-          <div class="preset-list">
-            <div 
-              v-for="(q, index) in presetQuestions" 
-              :key="index"
-              class="preset-item"
-            >
-              <span class="preset-text">{{ q.text }}</span>
-              <button class="btn btn-sm" @click="usePreset(q)">使用</button>
-            </div>
-          </div>
+          <p class="reset-warning">⚠️ 此操作將清除所有玩家資料和分數</p>
         </div>
       </div>
-      
+
       <!-- Teams Overview -->
       <div class="panel teams-panel">
         <h2>👥 隊伍狀態</h2>
         <div class="teams-list">
-          <div 
-            v-for="team in gameStore.teams" 
-            :key="team.id"
-            class="team-item"
-            :style="{ '--team-color': team.color }"
-          >
+          <div v-for="team in gameStore.teams" :key="team.id" class="team-item" :style="{ '--team-color': team.color }">
             <div class="team-header">
               <span class="team-dot"></span>
               <span class="team-name">{{ team.name }}</span>
             </div>
-            <div class="team-stats-row">
-              <span>{{ team.playerCount || 0 }} 人</span>
-              <span class="horse-power">{{ team.horsePower }} HP</span>
+            <div class="team-stats">
+              <div class="stat">
+                <span class="stat-label">人數</span>
+                <span class="stat-value">{{ team.playerCount || 0 }}</span>
+              </div>
+              <div class="stat">
+                <span class="stat-label">R1 分數</span>
+                <span class="stat-value">{{ team.round1Score || 0 }}</span>
+              </div>
+              <div class="stat">
+                <span class="stat-label">R2 分數</span>
+                <span class="stat-value">{{ team.round2Score || 0 }}</span>
+              </div>
+              <div class="stat total">
+                <span class="stat-label">總分</span>
+                <span class="stat-value">{{ team.totalScore || 0 }}</span>
+              </div>
             </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- QR Code Info -->
+      <div class="panel qr-panel">
+        <h2>📱 QR Code 連結</h2>
+        <div class="qr-links">
+          <div class="qr-item" v-for="team in teamsInfo" :key="team.id">
+            <span class="team-dot" :style="{ background: team.color }"></span>
+            <span class="team-name">{{ team.name }}</span>
+            <code class="qr-url">{{ baseUrl }}/player?team={{ team.id }}</code>
           </div>
         </div>
       </div>
@@ -171,118 +171,77 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, reactive } from 'vue'
 import { useGameStore } from '../stores/game'
 
 const gameStore = useGameStore()
-const optionLabels = ['A', 'B', 'C', 'D']
 
-// Phase 1 settings
-const phase1Duration = ref(30)
-const phase1Winners = ref(10)
-
-// Phase 2 settings
-const phase2TimePerQuestion = ref(15)
-
-// New question form
-const newQuestion = ref({
-  text: '',
-  options: ['', '', '', ''],
-  correctIndex: 0,
-  type: 'normal'
+// Settings
+const settings = reactive({
+  round1TargetScore: 40000,
+  round2TargetScore: 25000,
+  leaderboardSize: 20
 })
 
-// Preset questions
-const presetQuestions = ref([
-  { text: '公司成立於哪一年？', options: ['2015', '2018', '2020', '2022'], correctIndex: 1, type: 'normal' },
-  { text: '我們的吉祥物叫什麼名字？', options: ['小明', '旺財', '阿福', '小黑'], correctIndex: 0, type: 'star' },
-  { text: '辦公室在幾樓？', options: ['3樓', '5樓', '7樓', '10樓'], correctIndex: 2, type: 'banana' }
-])
+// Teams info for QR codes
+const teamsInfo = [
+  { id: 'blue', name: '藍隊', color: '#3B82F6' },
+  { id: 'yellow', name: '黃隊', color: '#EAB308' },
+  { id: 'red', name: '紅隊', color: '#EF4444' }
+]
+
+const baseUrl = computed(() => {
+  return window.location.origin
+})
 
 const phaseLabel = computed(() => {
   const labels = {
     waiting: '等待中',
-    phase1: '第一階段',
-    phase2: '第二階段',
+    round1: 'Round 1 進行中',
+    round1_result: 'Round 1 結果',
+    round2_warmup: 'Round 2 暖身中',
+    round2: 'Round 2 進行中',
+    round2_result: '最終結果',
     finished: '已結束'
   }
   return labels[gameStore.gamePhase] || '未知'
 })
 
-async function startPhase1() {
-  try {
-    await fetch('/api/admin/game/start', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        phase: 'phase1',
-        settings: {
-          phase1Duration: phase1Duration.value,
-          phase1Winners: phase1Winners.value
-        }
-      })
-    })
-  } catch (e) {
-    console.error('Failed to start phase 1:', e)
-  }
+function saveSettings() {
+  gameStore.updateSettings(settings)
+  alert('設定已儲存！')
 }
 
-async function startPhase2() {
-  try {
-    await fetch('/api/admin/game/start', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        phase: 'phase2',
-        settings: {
-          phase2TimePerQuestion: phase2TimePerQuestion.value
-        }
-      })
-    })
-  } catch (e) {
-    console.error('Failed to start phase 2:', e)
-  }
+function startRound(round) {
+  gameStore.startRound(round)
 }
 
-async function stopGame() {
-  try {
-    await fetch('/api/admin/game/stop', { method: 'POST' })
-  } catch (e) {
-    console.error('Failed to stop game:', e)
-  }
+function startWarmup() {
+  gameStore.startWarmup()
 }
 
-async function sendQuestion() {
-  if (!newQuestion.value.text || newQuestion.value.options.some(o => !o)) {
-    alert('請填寫完整的題目和選項')
-    return
-  }
-  
-  try {
-    await fetch('/api/admin/question', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ question: newQuestion.value })
-    })
-    
-    // Reset form
-    newQuestion.value = {
-      text: '',
-      options: ['', '', '', ''],
-      correctIndex: 0,
-      type: 'normal'
-    }
-  } catch (e) {
-    console.error('Failed to send question:', e)
-  }
+function stopGame() {
+  gameStore.socket?.emit('game:stop')
 }
 
-function usePreset(q) {
-  newQuestion.value = { ...q, options: [...q.options] }
+function showLeaderboard(type) {
+  gameStore.socket?.emit('admin:showLeaderboard', { type })
+}
+
+function resetGame() {
+  if (confirm('確定要重置遊戲嗎？此操作將清除所有玩家資料和分數！')) {
+    gameStore.socket?.emit('admin:resetGame')
+  }
 }
 
 onMounted(() => {
+  gameStore.connect()
   gameStore.joinAsAdmin()
+
+  // Load settings from server if available
+  if (gameStore.settings) {
+    Object.assign(settings, gameStore.settings)
+  }
 })
 </script>
 
@@ -363,6 +322,58 @@ onMounted(() => {
   color: var(--success);
 }
 
+/* Settings Panel */
+.settings-grid {
+  display: grid;
+  gap: var(--spacing-md);
+  margin-bottom: var(--spacing-lg);
+}
+
+.setting-item {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+}
+
+.setting-item label {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+}
+
+.setting-item input {
+  padding: var(--spacing-sm);
+  background: var(--bg-card-hover);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: var(--border-radius-sm);
+  color: var(--text-primary);
+  font-size: 1rem;
+}
+
+.setting-item input:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.setting-hint {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  opacity: 0.7;
+}
+
+.panel.locked {
+  opacity: 0.7;
+  border-color: rgba(225, 112, 85, 0.3);
+}
+
+.lock-badge {
+  font-size: 0.75rem;
+  padding: var(--spacing-xs) var(--spacing-sm);
+  background: rgba(225, 112, 85, 0.2);
+  border-radius: var(--border-radius-full);
+  margin-left: var(--spacing-sm);
+  color: var(--danger);
+}
+
 /* Control Panel */
 .control-section {
   margin-bottom: var(--spacing-xl);
@@ -382,27 +393,56 @@ onMounted(() => {
   color: var(--text-secondary);
 }
 
-.control-row {
+.reset-section {
+  border-top: 2px solid rgba(255, 193, 7, 0.3);
+  padding-top: var(--spacing-lg);
+  margin-top: var(--spacing-lg);
+}
+
+.game-id-display {
   display: flex;
-  gap: var(--spacing-md);
+  align-items: center;
+  gap: var(--spacing-sm);
   margin-bottom: var(--spacing-md);
 }
 
-.control-row label {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-xs);
-  font-size: 0.875rem;
+.game-id-label {
   color: var(--text-secondary);
 }
 
-.control-row input {
-  padding: var(--spacing-sm);
-  background: var(--bg-card-hover);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+.game-id-value {
+  padding: var(--spacing-xs) var(--spacing-sm);
+  background: rgba(0, 0, 0, 0.3);
   border-radius: var(--border-radius-sm);
-  color: var(--text-primary);
+  font-family: monospace;
+  color: var(--primary);
+}
+
+.reset-warning {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  opacity: 0.7;
+  margin-top: var(--spacing-sm);
+}
+
+.btn-warning {
+  background: linear-gradient(135deg, #F39C12, #E67E22);
+  color: white;
+}
+
+.btn-warning:hover {
+  box-shadow: 0 0 20px rgba(243, 156, 18, 0.5);
+}
+
+.round-controls,
+.leaderboard-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-md);
+}
+
+.btn-large {
+  padding: var(--spacing-md) var(--spacing-lg);
   font-size: 1rem;
 }
 
@@ -413,72 +453,6 @@ onMounted(() => {
 
 .btn-danger:hover {
   box-shadow: 0 0 20px rgba(225, 112, 85, 0.5);
-}
-
-.btn-sm {
-  padding: var(--spacing-xs) var(--spacing-md);
-  font-size: 0.75rem;
-}
-
-/* Question Panel */
-.question-form {
-  margin-bottom: var(--spacing-xl);
-}
-
-.form-group {
-  margin-bottom: var(--spacing-md);
-}
-
-.form-group label {
-  display: block;
-  margin-bottom: var(--spacing-xs);
-  font-size: 0.875rem;
-  color: var(--text-secondary);
-}
-
-.options-inputs {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: var(--spacing-sm);
-}
-
-.form-row {
-  display: flex;
-  gap: var(--spacing-md);
-}
-
-.form-row .form-group {
-  flex: 1;
-}
-
-.form-row select {
-  width: 100%;
-}
-
-.question-presets h3 {
-  font-size: 1rem;
-  margin-bottom: var(--spacing-md);
-  color: var(--text-secondary);
-}
-
-.preset-list {
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-sm);
-}
-
-.preset-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: var(--spacing-sm) var(--spacing-md);
-  background: rgba(255, 255, 255, 0.05);
-  border-radius: var(--border-radius-sm);
-}
-
-.preset-text {
-  font-size: 0.875rem;
-  color: var(--text-secondary);
 }
 
 /* Teams Panel */
@@ -498,7 +472,7 @@ onMounted(() => {
   display: flex;
   align-items: center;
   gap: var(--spacing-sm);
-  margin-bottom: var(--spacing-sm);
+  margin-bottom: var(--spacing-md);
 }
 
 .team-dot {
@@ -512,15 +486,59 @@ onMounted(() => {
   font-weight: 600;
 }
 
-.team-stats-row {
-  display: flex;
-  justify-content: space-between;
-  font-size: 0.875rem;
-  color: var(--text-secondary);
+.team-stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--spacing-sm);
 }
 
-.horse-power {
-  color: var(--accent-alt);
-  font-weight: 600;
+.stat {
+  text-align: center;
+  padding: var(--spacing-xs);
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: var(--border-radius-sm);
+}
+
+.stat.total {
+  background: rgba(108, 92, 231, 0.2);
+}
+
+.stat-label {
+  display: block;
+  font-size: 0.7rem;
+  color: var(--text-secondary);
+  margin-bottom: 2px;
+}
+
+.stat-value {
+  font-weight: 700;
+  font-size: 0.9rem;
+}
+
+/* QR Panel */
+.qr-links {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+}
+
+.qr-item {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-sm);
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: var(--border-radius-sm);
+}
+
+.qr-url {
+  flex: 1;
+  font-size: 0.75rem;
+  background: rgba(0, 0, 0, 0.3);
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border-radius: var(--border-radius-sm);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 </style>

@@ -1,55 +1,65 @@
 /**
- * HorseRacing - 第一階段：數位賽馬遊戲
- * 玩家透過搖晃手機或點擊螢幕累積分數
+ * HorseRacing - 賽馬遊戲（Phase 1）
+ * 支援 Round 1（點擊）和 Round 2（搖晃）
  */
 export class HorseRacing {
   constructor(gameManager) {
     this.gameManager = gameManager;
-    this.scores = new Map(); // socketId -> score
-    this.timer = null;
     this.updateInterval = null;
-    this.startTime = null;
-    this.duration = 30; // seconds
+    this.currentRound = 0;
+
+    // Round 狀態
+    this.roundState = {
+      bonusStage: 0,        // 0: 正常, 1: Bonus 1, 2: Bonus 2
+      buttonPosition: 0,    // 按鈕位置 (Round 1)
+      motionType: 'twist'   // 'twist' or 'vertical' (Round 2)
+    };
   }
 
-  start() {
-    this.scores.clear();
-    this.startTime = Date.now();
-    this.duration = this.gameManager.gameState.settings.phase1Duration;
+  start(round) {
+    this.currentRound = round;
+    this.roundState = {
+      bonusStage: 0,
+      buttonPosition: 0,
+      motionType: 'twist'
+    };
 
-    // Initialize all player scores
-    this.gameManager.players.forEach((player, socketId) => {
-      this.scores.set(socketId, 0);
-    });
+    // 重置該 Round 分數
+    if (round === 1) {
+      this.gameManager.teams.forEach(team => {
+        team.round1Score = 0;
+      });
+      this.gameManager.players.forEach(player => {
+        player.round1Score = 0;
+      });
+    } else if (round === 2) {
+      this.gameManager.teams.forEach(team => {
+        team.round2Score = 0;
+      });
+      this.gameManager.players.forEach(player => {
+        player.round2Score = 0;
+      });
+    }
 
-    // Update leaderboard every 500ms for smooth animation
+    // 每 200ms 更新賽道和排行榜
     this.updateInterval = setInterval(() => {
-      this.broadcastLeaderboard();
-    }, 500);
+      this.broadcastUpdate();
+      this.checkBonusThresholds();
+      this.checkRoundEnd();
+    }, 200);
 
-    // End game timer
-    this.timer = setTimeout(() => {
-      this.end();
-    }, this.duration * 1000);
-
-    // Broadcast start with countdown
-    this.gameManager.io.emit('phase1:start', {
-      duration: this.duration,
-      startTime: this.startTime
+    // 廣播開始
+    this.gameManager.io.emit(`round${round}:start`, {
+      round,
+      targetScore: round === 1
+        ? this.gameManager.settings.round1TargetScore
+        : this.gameManager.settings.round2TargetScore
     });
 
-    console.log(`Horse Racing started! Duration: ${this.duration}s`);
+    console.log(`Round ${round} started!`);
   }
 
   stop() {
-    this.cleanup();
-  }
-
-  cleanup() {
-    if (this.timer) {
-      clearTimeout(this.timer);
-      this.timer = null;
-    }
     if (this.updateInterval) {
       clearInterval(this.updateInterval);
       this.updateInterval = null;
@@ -57,96 +67,182 @@ export class HorseRacing {
   }
 
   handleAction(socketId, data) {
-    const { type, intensity = 1 } = data; // type: 'tap' or 'shake'
-
-    // Calculate score increment based on action type
-    let increment = 1;
-    if (type === 'shake') {
-      // Shake gives more points but requires device motion
-      increment = Math.min(Math.floor(intensity * 2), 5);
-    } else if (type === 'tap') {
-      // Tap is consistent
-      increment = 1;
-    }
-
-    // Update score
-    const currentScore = this.scores.get(socketId) || 0;
-    const newScore = currentScore + increment;
-    this.scores.set(socketId, newScore);
-
-    // Update player's score in game manager
     const player = this.gameManager.players.get(socketId);
-    if (player) {
-      player.score = newScore;
+    if (!player) return;
+
+    const team = this.gameManager.teams.get(player.teamId);
+    if (!team) return;
+
+    let increment = 0;
+    const { settings } = this.gameManager;
+
+    if (this.currentRound === 1) {
+      // Round 1: 點擊
+      if (data.type === 'tap') {
+        // 根據 Bonus 階段決定分數
+        increment = this.roundState.bonusStage > 0 ? 2 : 1;
+      }
+    } else if (this.currentRound === 2) {
+      // Round 2: 搖晃
+      if (data.type === 'shake') {
+        const { gyroZ, accelY } = data;
+
+        if (this.roundState.bonusStage === 0) {
+          // 扭轉模式 (Gyroscope.z)
+          if (Math.abs(gyroZ || 0) > settings.gyroThreshold) {
+            increment = 1;
+          }
+        } else {
+          // Bonus: 直線上下模式 (Acceleration.y)
+          if (Math.abs(accelY || 0) > settings.accelThreshold) {
+            increment = 2;
+          }
+        }
+      }
     }
 
-    // Send immediate feedback to player
-    this.gameManager.io.to(socketId).emit('phase1:score', {
-      score: newScore,
-      increment
-    });
-  }
-
-  broadcastLeaderboard() {
-    const leaderboard = this.getLeaderboard();
-    const elapsed = (Date.now() - this.startTime) / 1000;
-    const remaining = Math.max(0, this.duration - elapsed);
-
-    // Send to screens
-    this.gameManager.broadcastToScreens('phase1:leaderboard', {
-      leaderboard: leaderboard.slice(0, 20), // Top 20 for display
-      remaining: Math.ceil(remaining),
-      totalPlayers: this.scores.size
-    });
-
-    // Send individual rank to players
-    leaderboard.forEach((entry, index) => {
-      this.gameManager.io.to(entry.id).emit('phase1:rank', {
-        rank: index + 1,
-        score: entry.score,
-        remaining: Math.ceil(remaining)
-      });
-    });
-  }
-
-  getLeaderboard() {
-    const entries = [];
-
-    this.scores.forEach((score, socketId) => {
-      const player = this.gameManager.players.get(socketId);
-      if (player) {
-        entries.push({
-          id: socketId,
-          oderId: player.oderId,
-          nickname: player.nickname,
-          teamId: player.teamId,
-          score
-        });
+    if (increment > 0) {
+      // 更新個人分數
+      if (this.currentRound === 1) {
+        player.round1Score += increment;
+      } else {
+        player.round2Score += increment;
       }
-    });
+      player.totalScore = player.round1Score + player.round2Score;
 
-    // Sort by score descending
-    entries.sort((a, b) => b.score - a.score);
+      // 更新隊伍分數
+      if (this.currentRound === 1) {
+        team.round1Score += increment;
+      } else {
+        team.round2Score += increment;
+      }
+      team.totalScore = team.round1Score + team.round2Score;
 
-    return entries;
+      // 回傳即時分數給玩家
+      this.gameManager.io.to(socketId).emit('player:score', {
+        round: this.currentRound,
+        score: this.currentRound === 1 ? player.round1Score : player.round2Score,
+        totalScore: player.totalScore,
+        increment
+      });
+    }
   }
 
-  end() {
-    this.cleanup();
+  checkBonusThresholds() {
+    const { settings } = this.gameManager;
+    const teams = Array.from(this.gameManager.teams.values());
 
-    const leaderboard = this.getLeaderboard();
-    const winners = leaderboard.slice(0, this.gameManager.gameState.settings.phase1Winners);
+    if (this.currentRound === 1) {
+      const maxScore = Math.max(...teams.map(t => t.round1Score));
 
-    // Update game state
+      // Round 1 Bonus 門檻
+      if (this.roundState.bonusStage === 0 && maxScore >= settings.round1BonusThreshold1) {
+        this.roundState.bonusStage = 1;
+        this.roundState.buttonPosition = 1; // 往上往右
+        this.broadcastBonusChange();
+      } else if (this.roundState.bonusStage === 1 && maxScore >= settings.round1BonusThreshold2) {
+        this.roundState.bonusStage = 2;
+        this.roundState.buttonPosition = 2; // 往下往左
+        this.broadcastBonusChange();
+      }
+    } else if (this.currentRound === 2) {
+      const maxScore = Math.max(...teams.map(t => t.round2Score));
+
+      // Round 2 Bonus 門檻
+      if (this.roundState.bonusStage === 0 && maxScore >= settings.round2BonusThreshold) {
+        this.roundState.bonusStage = 1;
+        this.roundState.motionType = 'vertical';
+        this.broadcastBonusChange();
+      }
+    }
+  }
+
+  broadcastBonusChange() {
+    this.gameManager.io.emit('bonus:change', {
+      round: this.currentRound,
+      bonusStage: this.roundState.bonusStage,
+      buttonPosition: this.roundState.buttonPosition,
+      motionType: this.roundState.motionType
+    });
+
+    console.log(`Bonus stage changed: Round ${this.currentRound}, Stage ${this.roundState.bonusStage}`);
+  }
+
+  checkRoundEnd() {
+    const { settings } = this.gameManager;
+    const teams = Array.from(this.gameManager.teams.values());
+    const targetScore = this.currentRound === 1
+      ? settings.round1TargetScore
+      : settings.round2TargetScore;
+
+    // 檢查是否所有隊伍都達到目標分數
+    const allFinished = teams.every(team => {
+      const score = this.currentRound === 1 ? team.round1Score : team.round2Score;
+      return score >= targetScore;
+    });
+
+    if (allFinished) {
+      this.endRound();
+    }
+  }
+
+  endRound() {
+    this.stop();
+
+    const { settings } = this.gameManager;
     this.gameManager.gameState.isRunning = false;
 
-    // Broadcast results
-    this.gameManager.io.emit('phase1:end', {
-      winners,
-      leaderboard: leaderboard.slice(0, 50), // Top 50
-      totalPlayers: this.scores.size
+    // 計算排名
+    const teams = this.gameManager.getTeamsList().sort((a, b) => {
+      const scoreA = this.currentRound === 1 ? a.round1Score : a.round2Score;
+      const scoreB = this.currentRound === 1 ? b.round1Score : b.round2Score;
+      return scoreB - scoreA;
     });
 
-    console.log(`Horse Racing ended! Winners: ${winners.map(w => w.nickname).join(', ')}`);
+    // 個人排行榜
+    const leaderboard = this.gameManager.getLeaderboard(
+      this.currentRound === 1 ? 'round1' : 'round2'
+    ).slice(0, settings.leaderboardSize);
+
+    this.gameManager.io.emit(`round${this.currentRound}:end`, {
+      round: this.currentRound,
+      teams,
+      leaderboard,
+      winner: teams[0]
+    });
+
+    console.log(`Round ${this.currentRound} ended! Winner: ${teams[0].name}`);
+  }
+
+  broadcastUpdate() {
+    const { settings } = this.gameManager;
+    const teams = this.gameManager.getTeamsList();
+    const targetScore = this.currentRound === 1
+      ? settings.round1TargetScore
+      : settings.round2TargetScore;
+
+    // 計算賽道進度（Round 1: 400格, Round 2: 250格）
+    const trackDivisions = this.currentRound === 1 ? 400 : 250;
+    const progressPerDivision = targetScore / trackDivisions;
+
+    const horsePositions = teams.map(team => {
+      const score = this.currentRound === 1 ? team.round1Score : team.round2Score;
+      const position = Math.min(Math.floor(score / progressPerDivision), trackDivisions);
+      return {
+        teamId: team.id,
+        color: team.color,
+        score,
+        position,
+        progress: Math.min(score / targetScore * 100, 100)
+      };
+    });
+
+    // 廣播賽道狀態
+    this.gameManager.broadcastToScreens('race:update', {
+      round: this.currentRound,
+      horses: horsePositions,
+      bonusStage: this.roundState.bonusStage,
+      targetScore
+    });
   }
 }

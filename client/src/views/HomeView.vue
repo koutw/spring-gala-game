@@ -2,37 +2,38 @@
   <div class="home-view">
     <!-- Background particles -->
     <div class="particles-bg"></div>
-    
+
     <!-- Main Content -->
-    <div class="home-content animate-fadeIn">
+    <div class="home-content" v-animate="'fadeIn'">
       <!-- Logo & Title -->
       <div class="logo-section">
-        <div class="logo-icon">🎉</div>
+        <!-- Horse Racing Animation -->
+        <HorseRaceAnimation />
         <h1 class="title text-gradient">春酒互動遊戲</h1>
         <p class="subtitle">準備好一起嗨翻全場了嗎？</p>
       </div>
-      
+
       <!-- Role Selection -->
       <div class="role-cards">
-        <router-link to="/player" class="role-card player-card">
+        <router-link to="/player" class="role-card player-card" @mouseenter="onCardHover">
           <div class="role-icon">📱</div>
           <h2>玩家入口</h2>
           <p>用手機加入遊戲</p>
         </router-link>
-        
-        <router-link to="/screen" class="role-card screen-card">
+
+        <router-link to="/screen" class="role-card screen-card" @mouseenter="onCardHover">
           <div class="role-icon">📺</div>
           <h2>大螢幕</h2>
           <p>投影畫面</p>
         </router-link>
-        
-        <router-link to="/admin" class="role-card admin-card">
+
+        <router-link to="/admin" class="role-card admin-card" @mouseenter="onCardHover">
           <div class="role-icon">⚙️</div>
           <h2>管理員</h2>
           <p>控制遊戲</p>
         </router-link>
       </div>
-      
+
       <!-- Status -->
       <div class="status-bar" v-if="gameStore.connected">
         <span class="status-dot online"></span>
@@ -48,8 +49,19 @@
 
 <script setup>
 import { useGameStore } from '../stores/game'
+import { gsap } from '../utils/animations'
+import HorseRaceAnimation from '../components/HorseRaceAnimation.vue'
 
 const gameStore = useGameStore()
+
+// Card hover animation
+function onCardHover(event) {
+  gsap.to(event.currentTarget.querySelector('.role-icon'), {
+    scale: 1.2,
+    duration: 0.3,
+    ease: 'back.out(1.7)'
+  })
+}
 </script>
 
 <style scoped>
@@ -70,7 +82,7 @@ const gameStore = useGameStore()
   left: 0;
   width: 100%;
   height: 100%;
-  background: 
+  background:
     radial-gradient(circle at 20% 80%, rgba(108, 92, 231, 0.3) 0%, transparent 50%),
     radial-gradient(circle at 80% 20%, rgba(0, 206, 201, 0.3) 0%, transparent 50%),
     radial-gradient(circle at 50% 50%, rgba(253, 121, 168, 0.1) 0%, transparent 70%);
@@ -87,12 +99,6 @@ const gameStore = useGameStore()
 
 .logo-section {
   margin-bottom: var(--spacing-2xl);
-}
-
-.logo-icon {
-  font-size: 5rem;
-  margin-bottom: var(--spacing-md);
-  animation: bounce 2s ease infinite;
 }
 
 .title {
@@ -193,11 +199,11 @@ const gameStore = useGameStore()
   .title {
     font-size: 2rem;
   }
-  
+
   .logo-icon {
     font-size: 4rem;
   }
-  
+
   .role-cards {
     grid-template-columns: 1fr;
   }

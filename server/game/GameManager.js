@@ -1,149 +1,420 @@
 import { v4 as uuidv4 } from 'uuid';
 import { HorseRacing } from './HorseRacing.js';
-import { QuizGame } from './QuizGame.js';
+import { RedisStore } from './RedisStore.js';
 
 /**
  * GameManager - 遊戲管理器
- * 管理遊戲狀態、玩家、房間和遊戲階段
+ * 管理 600 位參與者，分 3 組（藍、黃、紅）進行賽馬競賽
  */
 export class GameManager {
   constructor(io) {
     this.io = io;
 
-    // Game state
-    this.gameState = {
-      phase: 'waiting', // waiting, phase1, phase2, finished
-      isRunning: false,
-      startTime: null,
-      settings: {
-        phase1Duration: 30, // seconds
-        phase1Winners: 10,  // top N winners
-        phase2Questions: 10,
-        phase2TimePerQuestion: 15 // seconds
-      }
+    // Redis 持久化
+    this.redis = new RedisStore();
+
+    // 遊戲設定（可由控制台調整）
+    this.settings = {
+      round1TargetScore: 40000,  // Round 1 目標分數
+      round2TargetScore: 25000,  // Round 2 目標分數
+      leaderboardSize: 20,       // 排行榜顯示人數
+      round1BonusThreshold1: 20000,
+      round1BonusThreshold2: 30000,
+      round2BonusThreshold: 15000,
+      // 感測門檻
+      gyroThreshold: 2.0,        // 扭轉門檻 (rad/s)
+      accelThreshold: 15         // 加速度門檻 (m/s²)
     };
 
-    // Player management
-    this.players = new Map(); // socketId -> player data
-    this.teams = new Map();   // teamId -> { name, players[], score }
+    // 遊戲狀態
+    this.gameState = {
+      gameId: this.generateGameId(),  // 遊戲場次識別碼
+      phase: 'waiting',  // waiting, round1, round1_result, round2_warmup, round2, round2_result, finished
+      isRunning: false,
+      currentRound: 0,
+      startTime: null
+    };
 
-    // Screen and admin clients
-    this.screens = new Set(); // socket ids of big screens
-    this.admins = new Set();  // socket ids of admins
+    // 玩家管理 (socketId -> player data)
+    this.players = new Map();
 
-    // Game instances
+    // 玩家 Session 管理 (employeeId -> player data) - 用於斷線重連
+    this.playersByEmployeeId = new Map();
+
+    // Session Token 管理 (sessionToken -> employeeId) - 安全驗證
+    this.sessionTokens = new Map();
+
+    // 3 組隊伍（藍、黃、紅）
+    this.teams = new Map();
+
+    // 大螢幕和管理員
+    this.screens = new Set();
+    this.admins = new Set();
+
+    // 遊戲實例
     this.horseRacing = new HorseRacing(this);
-    this.quizGame = new QuizGame(this);
 
-    // Predefined teams (departments)
+    // 初始化隊伍
     this.initializeTeams();
+
+    // 連接 Redis 並嘗試恢復狀態
+    this.initRedis();
+
+    console.log(`Game initialized with ID: ${this.gameState.gameId}`);
+  }
+
+  // 初始化 Redis 連接並恢復狀態
+  async initRedis() {
+    const connected = await this.redis.connect();
+    if (connected) {
+      await this.restoreFromRedis();
+      // 啟動定期儲存
+      this.startPeriodicSave();
+    }
+  }
+
+  // 從 Redis 恢復狀態
+  async restoreFromRedis() {
+    try {
+      // 恢復遊戲狀態
+      const savedGameState = await this.redis.loadGameState();
+      if (savedGameState) {
+        this.gameState = savedGameState;
+        console.log(`Restored game state: ${savedGameState.gameId}`);
+      }
+
+      // 恢復設定
+      const savedSettings = await this.redis.loadSettings();
+      if (savedSettings) {
+        this.settings = { ...this.settings, ...savedSettings };
+        console.log('Restored settings');
+      }
+
+      // 恢復隊伍
+      const savedTeams = await this.redis.loadTeams();
+      if (savedTeams) {
+        savedTeams.forEach((team, id) => {
+          const existingTeam = this.teams.get(id);
+          if (existingTeam) {
+            existingTeam.round1Score = team.round1Score || 0;
+            existingTeam.round2Score = team.round2Score || 0;
+            existingTeam.totalScore = team.totalScore || 0;
+          }
+        });
+        console.log('Restored teams');
+      }
+
+      // 恢復玩家
+      const savedPlayers = await this.redis.loadPlayers();
+      if (savedPlayers.size > 0) {
+        savedPlayers.forEach((player, employeeId) => {
+          player.isOnline = false; // 伺服器重啟，所有人離線
+          player.id = null;
+          this.playersByEmployeeId.set(employeeId, player);
+        });
+        console.log(`Restored ${savedPlayers.size} players`);
+      }
+    } catch (error) {
+      console.error('Failed to restore from Redis:', error.message);
+    }
+  }
+
+  // 定期儲存到 Redis（每 5 秒）
+  startPeriodicSave() {
+    setInterval(async () => {
+      await this.saveToRedis();
+    }, 5000);
+  }
+
+  // 儲存到 Redis
+  async saveToRedis() {
+    if (!this.redis.isConnected) return;
+
+    await this.redis.saveGameState(this.gameState);
+    await this.redis.saveSettings(this.settings);
+    await this.redis.saveTeams(this.teams);
+
+    // 儲存玩家
+    for (const [employeeId, player] of this.playersByEmployeeId) {
+      await this.redis.savePlayer(employeeId, player);
+    }
+  }
+
+  // 產生遊戲場次識別碼 (格式: GAME-YYYYMMDD-XXXX)
+  generateGameId() {
+    const now = new Date();
+    const dateStr = now.toISOString().slice(0, 10).replace(/-/g, '');
+    const randomStr = Math.random().toString(36).substring(2, 6).toUpperCase();
+    return `GAME-${dateStr}-${randomStr}`;
+  }
+
+  // 產生安全的 Session Token（32 位隨機字串）
+  generateSessionToken() {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+    let token = '';
+    for (let i = 0; i < 32; i++) {
+      token += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return token;
+  }
+
+  // 重置遊戲（開始新的一場）
+  async resetGame() {
+    // 產生新的遊戲 ID
+    const newGameId = this.generateGameId();
+
+    // 清除所有玩家資料
+    this.players.clear();
+    this.playersByEmployeeId.clear();
+
+    // 重置遊戲狀態
+    this.gameState = {
+      gameId: newGameId,
+      phase: 'waiting',
+      isRunning: false,
+      currentRound: 0,
+      startTime: null
+    };
+
+    // 重置隊伍分數
+    this.initializeTeams();
+
+    // 清除 Redis 資料
+    await this.redis.clearAll();
+
+    // 廣播遊戲重置
+    this.io.emit('game:reset', { gameId: newGameId });
+    this.broadcastPlayerCount();
+
+    console.log(`Game reset! New ID: ${newGameId}`);
+    return newGameId;
   }
 
   initializeTeams() {
     const defaultTeams = [
-      { id: 'team1', name: '研發部', color: '#FF6B6B' },
-      { id: 'team2', name: '設計部', color: '#4ECDC4' },
-      { id: 'team3', name: '行銷部', color: '#45B7D1' },
-      { id: 'team4', name: '業務部', color: '#96CEB4' },
-      { id: 'team5', name: '人資部', color: '#FFEAA7' },
-      { id: 'team6', name: '財務部', color: '#DDA0DD' }
+      { id: 'blue', name: '藍隊', color: '#3B82F6', gradient: 'linear-gradient(180deg, #3B82F6 0%, #1D4ED8 100%)' },
+      { id: 'yellow', name: '黃隊', color: '#EAB308', gradient: 'linear-gradient(180deg, #EAB308 0%, #CA8A04 100%)' },
+      { id: 'red', name: '紅隊', color: '#EF4444', gradient: 'linear-gradient(180deg, #EF4444 0%, #DC2626 100%)' }
     ];
 
     defaultTeams.forEach(team => {
       this.teams.set(team.id, {
         ...team,
         players: [],
-        score: 0,
-        horsePower: 100
+        round1Score: 0,
+        round2Score: 0,
+        totalScore: 0
       });
     });
   }
 
-  // Add a new player
+  // 新增/重連玩家 - 支援 Session Token 安全驗證
   addPlayer(socket, data) {
-    const { nickname, teamId } = data;
+    const { employeeId, teamId, sessionToken } = data;
+
+    // 1. 嘗試使用 sessionToken 重連（安全驗證）
+    if (sessionToken && this.sessionTokens.has(sessionToken)) {
+      const storedEmployeeId = this.sessionTokens.get(sessionToken);
+      if (this.playersByEmployeeId.has(storedEmployeeId)) {
+        return this.reconnectPlayer(socket, storedEmployeeId, sessionToken);
+      }
+    }
+
+    // 2. 新玩家加入（需要 employeeId）
+    if (!employeeId) {
+      socket.emit('player:error', { message: '缺少員工編號' });
+      return;
+    }
+
+    const normalizedEmployeeId = employeeId.trim().toUpperCase();
+
+    // 檢查 employeeId 是否已被使用
+    if (this.playersByEmployeeId.has(normalizedEmployeeId)) {
+      socket.emit('player:error', {
+        message: '此員工編號已在遊戲中，請使用原裝置重新連線'
+      });
+      return;
+    }
+
+    // 驗證隊伍 ID
+    const validTeamId = ['blue', 'yellow', 'red'].includes(teamId) ? teamId : 'blue';
+
+    // 產生新的 sessionToken
+    const newSessionToken = this.generateSessionToken();
 
     const player = {
       id: socket.id,
       oderId: uuidv4().slice(0, 8),
-      nickname: nickname || `玩家${this.players.size + 1}`,
-      teamId: teamId || this.autoAssignTeam(),
-      score: 0,
-      joinedAt: Date.now()
+      employeeId: normalizedEmployeeId,
+      sessionToken: newSessionToken,
+      teamId: validTeamId,
+      round1Score: 0,
+      round2Score: 0,
+      totalScore: 0,
+      joinedAt: Date.now(),
+      lastActiveAt: Date.now(),
+      isOnline: true
     };
 
-    this.players.set(socket.id, player);
+    // 儲存 sessionToken → employeeId 對應
+    this.sessionTokens.set(newSessionToken, normalizedEmployeeId);
 
-    // Add player to team
+    this.players.set(socket.id, player);
+    this.playersByEmployeeId.set(normalizedEmployeeId, player);
+
+    // 加入隊伍
     const team = this.teams.get(player.teamId);
     if (team) {
       team.players.push(socket.id);
     }
 
-    // Join socket room
+    // 加入 Socket 房間
     socket.join('players');
     socket.join(`team:${player.teamId}`);
 
-    // Notify player of successful join
+    // 回傳加入成功（包含 sessionToken 供前端儲存）
     socket.emit('player:joined', {
-      player,
-      team: this.teams.get(player.teamId),
-      gameState: this.getGameStatus()
+      player: { ...player, sessionToken: newSessionToken },
+      team: this.getTeamInfo(player.teamId),
+      gameState: this.getGameStatus(),
+      sessionToken: newSessionToken,  // 獨立欄位方便前端取用
+      isReconnect: false
     });
 
-    // Broadcast updated player count
+    // 廣播更新人數
     this.broadcastPlayerCount();
 
-    console.log(`Player joined: ${player.nickname} (Team: ${team?.name})`);
+    console.log(`Player joined: ${player.employeeId} (Team: ${team?.name})`);
   }
 
-  // Auto-assign player to team with fewest members
-  autoAssignTeam() {
-    let minPlayers = Infinity;
-    let targetTeamId = 'team1';
+  // 重連玩家 - 恢復之前的分數和狀態，使用 sessionToken 驗證
+  reconnectPlayer(socket, employeeId, sessionToken) {
+    const existingPlayer = this.playersByEmployeeId.get(employeeId);
+    if (!existingPlayer) return;
 
-    this.teams.forEach((team, id) => {
-      if (team.players.length < minPlayers) {
-        minPlayers = team.players.length;
-        targetTeamId = id;
-      }
+    const oldSocketId = existingPlayer.id;
+
+    // 踢掉前一個連線（如果還在線）
+    if (oldSocketId && this.io.sockets.sockets.has(oldSocketId)) {
+      const oldSocket = this.io.sockets.sockets.get(oldSocketId);
+      oldSocket.emit('player:kicked', { reason: '您已在其他裝置登入' });
+      oldSocket.disconnect(true);
+      console.log(`Kicked previous connection for ${employeeId}: ${oldSocketId}`);
+    }
+
+    // 從舊的 socket 移除
+    this.players.delete(oldSocketId);
+    const team = this.teams.get(existingPlayer.teamId);
+    if (team) {
+      team.players = team.players.filter(id => id !== oldSocketId);
+    }
+
+    // 更新為新的 socket
+    existingPlayer.id = socket.id;
+    existingPlayer.lastActiveAt = Date.now();
+    existingPlayer.isOnline = true;
+
+    this.players.set(socket.id, existingPlayer);
+
+    // 重新加入隊伍
+    if (team) {
+      team.players.push(socket.id);
+    }
+
+    // 加入 Socket 房間
+    socket.join('players');
+    socket.join(`team:${existingPlayer.teamId}`);
+
+    // 回傳重連成功（包含 sessionToken、分數和狀態）
+    socket.emit('player:joined', {
+      player: existingPlayer,
+      team: this.getTeamInfo(existingPlayer.teamId),
+      gameState: this.getGameStatus(),
+      roundState: this.getRoundState(),
+      sessionToken: sessionToken,  // 回傳原有的 sessionToken
+      isReconnect: true
     });
 
-    return targetTeamId;
+    // 廣播更新人數
+    this.broadcastPlayerCount();
+
+    console.log(`Player reconnected: ${employeeId} (Score: R1=${existingPlayer.round1Score}, R2=${existingPlayer.round2Score})`);
   }
 
-  // Add big screen
+  getTeamInfo(teamId) {
+    const team = this.teams.get(teamId);
+    if (!team) return null;
+    return {
+      id: team.id,
+      name: team.name,
+      color: team.color,
+      gradient: team.gradient,
+      playerCount: team.players.length
+    };
+  }
+
+  // 大螢幕連線 - 發送完整賽跑狀態
   addScreen(socket) {
     this.screens.add(socket.id);
     socket.join('screens');
 
-    // Send current game state
     socket.emit('screen:init', {
       gameState: this.getGameStatus(),
-      players: this.getPlayersList(),
-      teams: this.getTeamsList()
+      teams: this.getTeamsList(),
+      settings: this.settings,
+      roundState: this.getRoundState(),
+      raceProgress: this.getRaceProgress()
     });
 
     console.log(`Big screen connected: ${socket.id}`);
   }
 
-  // Add admin
+  // 取得當前 Round 狀態
+  getRoundState() {
+    return {
+      bonusStage: this.horseRacing.roundState?.bonusStage || 0,
+      buttonPosition: this.horseRacing.roundState?.buttonPosition || 0,
+      motionType: this.horseRacing.roundState?.motionType || 'twist'
+    };
+  }
+
+  // 取得賽跑進度
+  getRaceProgress() {
+    const teams = [];
+    this.teams.forEach((team, id) => {
+      const targetScore = this.gameState.currentRound === 1
+        ? this.settings.round1TargetScore
+        : this.settings.round2TargetScore;
+      const currentScore = this.gameState.currentRound === 1
+        ? team.round1Score
+        : team.round2Score;
+
+      teams.push({
+        id: team.id,
+        name: team.name,
+        color: team.color,
+        score: currentScore,
+        progress: Math.min((currentScore / targetScore) * 100, 100)
+      });
+    });
+    return { teams };
+  }
+
+  // 管理員連線
   addAdmin(socket) {
     this.admins.add(socket.id);
     socket.join('admins');
 
-    // Send full game state
     socket.emit('admin:init', {
       gameState: this.getGameStatus(),
-      players: this.getPlayersList(),
       teams: this.getTeamsList(),
-      settings: this.gameState.settings
+      settings: this.settings
     });
 
     console.log(`Admin connected: ${socket.id}`);
   }
 
-  // Remove disconnected client
+  // 斷線處理 - 保留玩家資料以供重連
   removeClient(socketId) {
     if (this.players.has(socketId)) {
       const player = this.players.get(socketId);
@@ -153,99 +424,168 @@ export class GameManager {
         team.players = team.players.filter(id => id !== socketId);
       }
 
+      // 標記為離線，但保留資料（30 分鐘內可重連）
+      player.isOnline = false;
+      player.disconnectedAt = Date.now();
+
+      // 從 active players 移除，但保留在 playersByEmployeeId
       this.players.delete(socketId);
+      // 注意：不要從 playersByEmployeeId 刪除！
+
       this.broadcastPlayerCount();
+      console.log(`Player disconnected (session kept): ${player.employeeId}`);
     }
 
     this.screens.delete(socketId);
     this.admins.delete(socketId);
   }
 
-  // Handle player action (Phase 1 - tap/shake)
+  // 處理玩家動作
   handlePlayerAction(socketId, data) {
-    if (this.gameState.phase !== 'phase1' || !this.gameState.isRunning) {
-      return;
-    }
+    if (!this.gameState.isRunning) return;
 
-    this.horseRacing.handleAction(socketId, data);
+    if (this.gameState.phase === 'round1' || this.gameState.phase === 'round2') {
+      this.horseRacing.handleAction(socketId, data);
+    }
   }
 
-  // Handle player answer (Phase 2 - quiz)
-  handlePlayerAnswer(socketId, data) {
-    if (this.gameState.phase !== 'phase2' || !this.gameState.isRunning) {
-      return;
+  // 更新設定
+  updateSettings(newSettings) {
+    // 遊戲進行中不可調整設定
+    if (this.gameState.isRunning) {
+      console.log('Settings locked: game is running');
+      return { success: false, message: '遊戲進行中，無法調整設定' };
     }
 
-    this.quizGame.handleAnswer(socketId, data);
+    // 如果 Round 1 總分調整，等比例調整 Bonus 門檻
+    if (newSettings.round1TargetScore && newSettings.round1TargetScore !== this.settings.round1TargetScore) {
+      const ratio = newSettings.round1TargetScore / 40000; // 以預設值 40000 為基準
+      newSettings.round1BonusThreshold1 = Math.round(20000 * ratio);
+      newSettings.round1BonusThreshold2 = Math.round(30000 * ratio);
+    }
+
+    // 如果 Round 2 總分調整，等比例調整 Bonus 門檻
+    if (newSettings.round2TargetScore && newSettings.round2TargetScore !== this.settings.round2TargetScore) {
+      const ratio = newSettings.round2TargetScore / 25000; // 以預設值 25000 為基準
+      newSettings.round2BonusThreshold = Math.round(15000 * ratio);
+    }
+
+    this.settings = { ...this.settings, ...newSettings };
+
+    // 廣播設定更新
+    this.io.to('admins').emit('admin:settings', this.settings);
+
+    console.log('Settings updated:', this.settings);
+    return { success: true };
   }
 
-  // Start game
-  startGame(phase, settings = {}) {
-    this.gameState.phase = phase;
+  // 開始遊戲
+  startGame(round) {
+    if (round === 1) {
+      this.gameState.phase = 'round1';
+      this.gameState.currentRound = 1;
+    } else if (round === 2) {
+      this.gameState.phase = 'round2';
+      this.gameState.currentRound = 2;
+    }
+
     this.gameState.isRunning = true;
     this.gameState.startTime = Date.now();
-    this.gameState.settings = { ...this.gameState.settings, ...settings };
 
-    if (phase === 'phase1') {
-      this.horseRacing.start();
-    } else if (phase === 'phase2') {
-      this.quizGame.start();
-    }
+    this.horseRacing.start(round);
 
-    // Broadcast game start
     this.io.emit('game:start', {
-      phase,
-      settings: this.gameState.settings
+      phase: this.gameState.phase,
+      round
     });
 
-    console.log(`Game started: ${phase}`);
+    console.log(`Game started: Round ${round}`);
   }
 
-  // Stop game
+  // 停止遊戲
   stopGame() {
     this.gameState.isRunning = false;
-
-    if (this.gameState.phase === 'phase1') {
-      this.horseRacing.stop();
-    } else if (this.gameState.phase === 'phase2') {
-      this.quizGame.stop();
-    }
-
+    this.horseRacing.stop();
     this.io.emit('game:stop', {});
     console.log('Game stopped');
   }
 
-  // Send question (Phase 2)
-  sendQuestion(question) {
-    this.quizGame.sendQuestion(question);
+  // 開始 Round 2 暖身階段
+  startWarmup() {
+    this.gameState.phase = 'round2_warmup';
+    this.io.emit('round2:warmup', {});
+    console.log('Round 2 warmup started - players can authorize motion sensors');
   }
 
-  // Get game status
+  // 顯示排行榜
+  showLeaderboard(type = 'current') {
+    const leaderboard = this.getLeaderboard(type);
+
+    if (this.gameState.currentRound === 1) {
+      this.gameState.phase = 'round1_result';
+    } else if (this.gameState.currentRound === 2) {
+      this.gameState.phase = 'round2_result';
+    }
+
+    this.io.emit('leaderboard:show', {
+      type,
+      leaderboard: leaderboard.slice(0, this.settings.leaderboardSize),
+      teams: this.getTeamsList()
+    });
+  }
+
+  // 取得排行榜
+  getLeaderboard(type = 'total') {
+    const entries = [];
+
+    this.players.forEach((player, socketId) => {
+      let score = 0;
+      if (type === 'round1') {
+        score = player.round1Score;
+      } else if (type === 'round2') {
+        score = player.round2Score;
+      } else {
+        score = player.totalScore;
+      }
+
+      entries.push({
+        id: socketId,
+        employeeId: player.employeeId,
+        teamId: player.teamId,
+        score
+      });
+    });
+
+    entries.sort((a, b) => b.score - a.score);
+    return entries;
+  }
+
+  // 取得遊戲狀態
   getGameStatus() {
     return {
       phase: this.gameState.phase,
       isRunning: this.gameState.isRunning,
+      currentRound: this.gameState.currentRound,
       playerCount: this.players.size,
-      teamCount: this.teams.size,
-      settings: this.gameState.settings
+      settings: this.settings
     };
   }
 
-  // Get players list
-  getPlayersList() {
-    return Array.from(this.players.values());
-  }
-
-  // Get teams list
+  // 取得隊伍列表
   getTeamsList() {
     return Array.from(this.teams.entries()).map(([id, team]) => ({
       id,
-      ...team,
-      playerCount: team.players.length
+      name: team.name,
+      color: team.color,
+      gradient: team.gradient,
+      playerCount: team.players.length,
+      round1Score: team.round1Score,
+      round2Score: team.round2Score,
+      totalScore: team.totalScore
     }));
   }
 
-  // Broadcast player count update
+  // 廣播人數更新
   broadcastPlayerCount() {
     this.io.emit('players:count', {
       total: this.players.size,
@@ -253,17 +593,17 @@ export class GameManager {
     });
   }
 
-  // Broadcast to all screens
+  // 廣播到所有大螢幕
   broadcastToScreens(event, data) {
     this.io.to('screens').emit(event, data);
   }
 
-  // Broadcast to all players
+  // 廣播到所有玩家
   broadcastToPlayers(event, data) {
     this.io.to('players').emit(event, data);
   }
 
-  // Broadcast to specific team
+  // 廣播到特定隊伍
   broadcastToTeam(teamId, event, data) {
     this.io.to(`team:${teamId}`).emit(event, data);
   }

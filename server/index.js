@@ -104,6 +104,32 @@ io.on('connection', (socket) => {
     gameManager.addAdmin(socket);
   });
 
+  // Admin starts a round
+  socket.on('admin:startRound', (data) => {
+    gameManager.startGame(data.round);
+  });
+
+  // Admin starts Round 2 warmup
+  socket.on('admin:startWarmup', () => {
+    gameManager.startWarmup();
+  });
+
+  // Admin updates settings
+  socket.on('admin:updateSettings', (data) => {
+    gameManager.updateSettings(data);
+  });
+
+  // Admin shows leaderboard
+  socket.on('admin:showLeaderboard', (data) => {
+    gameManager.showLeaderboard(data?.type || 'total');
+  });
+
+  // Admin resets game (start new session)
+  socket.on('admin:resetGame', () => {
+    const newGameId = gameManager.resetGame();
+    socket.emit('admin:gameReset', { gameId: newGameId });
+  });
+
   // Handle disconnection
   socket.on('disconnect', () => {
     console.log(`Client disconnected: ${socket.id}`);
