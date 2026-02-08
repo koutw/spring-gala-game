@@ -114,6 +114,11 @@ io.on('connection', (socket) => {
     gameManager.startWarmup();
   });
 
+  // Admin ends current round immediately
+  socket.on('admin:endRound', (data) => {
+    gameManager.endRound(data.round);
+  });
+
   // Admin updates settings
   socket.on('admin:updateSettings', (data) => {
     gameManager.updateSettings(data);

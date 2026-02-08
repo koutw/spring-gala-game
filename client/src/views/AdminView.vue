@@ -106,9 +106,20 @@
         </div>
 
         <div class="control-section">
-          <button class="btn btn-danger btn-large" @click="stopGame" :disabled="!gameStore.isRunning">
-            停止遊戲 ⛔
-          </button>
+          <h3>遊戲控制</h3>
+          <div class="round-controls">
+            <button class="btn btn-danger" @click="endRound(1)"
+              :disabled="!gameStore.isRunning || gameStore.gamePhase !== 'round1'">
+              結束 Round 1 🏁
+            </button>
+            <button class="btn btn-danger" @click="endRound(2)"
+              :disabled="!gameStore.isRunning || gameStore.gamePhase !== 'round2'">
+              結束 Round 2 🏁
+            </button>
+            <button class="btn btn-danger btn-large" @click="stopGame" :disabled="!gameStore.isRunning">
+              停止遊戲 ⛔
+            </button>
+          </div>
         </div>
 
         <div class="control-section reset-section">
@@ -222,6 +233,12 @@ function startWarmup() {
 
 function stopGame() {
   gameStore.socket?.emit('game:stop')
+}
+
+function endRound(round) {
+  if (confirm(`確定要結束 Round ${round} 嗎？將立即進入積分畫面。`)) {
+    gameStore.socket?.emit('admin:endRound', { round })
+  }
 }
 
 function showLeaderboard(type) {

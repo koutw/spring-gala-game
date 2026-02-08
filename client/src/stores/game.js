@@ -182,7 +182,23 @@ export const useGameStore = defineStore('game', () => {
 
     // Race update (for screens)
     socket.value.on('race:update', (data) => {
-      teams.value = data.horses
+      // Update team scores from race data
+      if (data.horses && teams.value) {
+        data.horses.forEach(horse => {
+          const team = teams.value.find(t => t.id === horse.teamId)
+          if (team) {
+            if (data.round === 1) {
+              team.round1Score = horse.score
+            } else if (data.round === 2) {
+              team.round2Score = horse.score
+            }
+            team.totalScore = (team.round1Score || 0) + (team.round2Score || 0)
+          }
+        })
+        // Trigger reactivity
+        teams.value = [...teams.value]
+      }
+      bonusStage.value = data.bonusStage || 0
     })
   }
 

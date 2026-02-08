@@ -73,7 +73,8 @@ function onCardHover(event) {
   justify-content: center;
   padding: var(--spacing-lg);
   position: relative;
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 
 .particles-bg {

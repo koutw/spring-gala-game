@@ -166,6 +166,7 @@ export class GameManager {
     // 清除所有玩家資料
     this.players.clear();
     this.playersByEmployeeId.clear();
+    this.sessionTokens.clear();  // 清除所有 session tokens
 
     // 重置遊戲狀態
     this.gameState = {
@@ -515,6 +516,18 @@ export class GameManager {
     this.gameState.phase = 'round2_warmup';
     this.io.emit('round2:warmup', {});
     console.log('Round 2 warmup started - players can authorize motion sensors');
+  }
+
+  // 強制結束當前回合
+  endRound(round) {
+    if (!this.gameState.isRunning) return;
+
+    // 確認是正確的回合
+    if (this.gameState.currentRound !== round) return;
+
+    // 呼叫 HorseRacing 的 endRound 方法
+    this.horseRacing.endRound();
+    console.log(`Round ${round} ended by admin`);
   }
 
   // 顯示排行榜

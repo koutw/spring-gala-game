@@ -487,7 +487,8 @@ watch(() => gameStore.bonusStage, (newStage) => {
 .player-view {
   min-height: 100dvh;
   position: relative;
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 
 /* Team color gradient borders */
