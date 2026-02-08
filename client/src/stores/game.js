@@ -203,6 +203,15 @@ export const useGameStore = defineStore('game', () => {
 
     // Race update (for screens)
     socket.value.on('race:update', (data) => {
+      // Update target score in settings
+      if (data.targetScore) {
+        if (data.round === 1) {
+          settings.value = { ...settings.value, round1TargetScore: data.targetScore }
+        } else if (data.round === 2) {
+          settings.value = { ...settings.value, round2TargetScore: data.targetScore }
+        }
+      }
+
       // Update team scores from race data
       if (data.horses && teams.value) {
         data.horses.forEach(horse => {

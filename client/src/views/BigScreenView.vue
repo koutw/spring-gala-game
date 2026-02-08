@@ -140,19 +140,19 @@
           <div class="podium-place second" v-if="sortedTotalTeams[1]">
             <div class="podium-emoji">🥈</div>
             <div class="podium-name">{{ sortedTotalTeams[1].name }}</div>
-            <div class="podium-score">{{ sortedTotalTeams[1].totalScore }}</div>
+            <div class="podium-score"></div>
             <div class="podium-stand"></div>
           </div>
           <div class="podium-place first" v-if="sortedTotalTeams[0]">
             <div class="podium-emoji">🥇</div>
             <div class="podium-name">{{ sortedTotalTeams[0].name }}</div>
-            <div class="podium-score">{{ sortedTotalTeams[0].totalScore }}</div>
+            <div class="podium-score"></div>
             <div class="podium-stand"></div>
           </div>
           <div class="podium-place third" v-if="sortedTotalTeams[2]">
             <div class="podium-emoji">🥉</div>
             <div class="podium-name">{{ sortedTotalTeams[2].name }}</div>
-            <div class="podium-score">{{ sortedTotalTeams[2].totalScore }}</div>
+            <div class="podium-score"></div>
             <div class="podium-stand"></div>
           </div>
         </div>
