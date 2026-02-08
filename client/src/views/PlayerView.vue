@@ -655,10 +655,11 @@ watch(() => gameStore.bonusStage, (newStage) => {
 .score-display {
   font-size: 4rem;
   font-weight: 900;
-  background: linear-gradient(135deg, #fff, #ddd);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  color: #ffffff;
+  background: rgba(0, 0, 0, 0.7);
+  padding: var(--spacing-md) var(--spacing-xl);
+  border-radius: var(--border-radius-lg);
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
 }
 
 .score-label {

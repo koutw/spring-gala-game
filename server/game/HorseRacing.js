@@ -73,8 +73,22 @@ export class HorseRacing {
     const team = this.gameManager.teams.get(player.teamId);
     if (!team) return;
 
-    let increment = 0;
     const { settings } = this.gameManager;
+
+    // 檢查該隊是否已達到目標分數
+    const targetScore = this.currentRound === 1
+      ? settings.round1TargetScore
+      : settings.round2TargetScore;
+    const currentTeamScore = this.currentRound === 1
+      ? team.round1Score
+      : team.round2Score;
+
+    // 如果隊伍已達到目標分數，不再累積積分
+    if (currentTeamScore >= targetScore) {
+      return;
+    }
+
+    let increment = 0;
 
     if (this.currentRound === 1) {
       // Round 1: 點擊

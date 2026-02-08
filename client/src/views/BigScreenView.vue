@@ -51,14 +51,14 @@
             {{ horse.name }}
           </div>
           <div class="horse-track-bar">
-            <div class="horse-progress" :style="{
+            <div class="horse-progress" :class="{ leading: horse.isLeading, finished: horse.isFinished }" :style="{
               width: horse.progress + '%',
               background: horse.color
             }">
               <span class="horse-emoji">🏇</span>
+              <span v-if="horse.isFinished" class="finish-celebration">🎉</span>
             </div>
           </div>
-          <div class="horse-score">{{ horse.score }}</div>
         </div>
       </div>
     </div>
@@ -118,14 +118,14 @@
             {{ horse.name }}
           </div>
           <div class="horse-track-bar">
-            <div class="horse-progress" :style="{
+            <div class="horse-progress" :class="{ leading: horse.isLeading, finished: horse.isFinished }" :style="{
               width: horse.progress + '%',
               background: horse.color
             }">
               <span class="horse-emoji">🏇</span>
+              <span v-if="horse.isFinished" class="finish-celebration">🎉</span>
             </div>
           </div>
-          <div class="horse-score">{{ horse.score }}</div>
         </div>
       </div>
     </div>
@@ -200,26 +200,44 @@ const currentMotionType = computed(() => gameStore.motionType)
 
 // Round 1 horses (from teams data)
 const horses = computed(() => {
-  return (gameStore.teams || []).map((team, index) => ({
-    id: team.id,
-    name: team.name,
-    color: team.color,
-    score: team.round1Score || 0,
-    progress: Math.min((team.round1Score || 0) / (gameStore.settings?.round1TargetScore || 40000) * 100, 100),
-    laneIndex: index
-  }))
+  const targetScore = gameStore.settings?.round1TargetScore || 40000
+  const teamsData = gameStore.teams || []
+  const maxScore = Math.max(...teamsData.map(t => t.round1Score || 0), 0)
+
+  return teamsData.map((team, index) => {
+    const score = team.round1Score || 0
+    return {
+      id: team.id,
+      name: team.name,
+      color: team.color,
+      score,
+      progress: Math.min(score / targetScore * 100, 100),
+      laneIndex: index,
+      isLeading: score > 0 && score === maxScore,
+      isFinished: score >= targetScore
+    }
+  })
 })
 
 // Round 2 horses
 const horsesRound2 = computed(() => {
-  return (gameStore.teams || []).map((team, index) => ({
-    id: team.id,
-    name: team.name,
-    color: team.color,
-    score: team.round2Score || 0,
-    progress: Math.min((team.round2Score || 0) / (gameStore.settings?.round2TargetScore || 25000) * 100, 100),
-    laneIndex: index
-  }))
+  const targetScore = gameStore.settings?.round2TargetScore || 25000
+  const teamsData = gameStore.teams || []
+  const maxScore = Math.max(...teamsData.map(t => t.round2Score || 0), 0)
+
+  return teamsData.map((team, index) => {
+    const score = team.round2Score || 0
+    return {
+      id: team.id,
+      name: team.name,
+      color: team.color,
+      score,
+      progress: Math.min(score / targetScore * 100, 100),
+      laneIndex: index,
+      isLeading: score > 0 && score === maxScore,
+      isFinished: score >= targetScore
+    }
+  })
 })
 
 // Sorted by round1 score
@@ -517,17 +535,69 @@ onMounted(() => {
   padding-right: var(--spacing-sm);
   transition: width 0.3s ease-out;
   min-width: 60px;
+  position: relative;
+}
+
+/* Leading team pulse effect */
+.horse-progress.leading {
+  animation: leading-pulse 1s ease-in-out infinite;
+  box-shadow: 0 0 20px currentColor;
+}
+
+@keyframes leading-pulse {
+
+  0%,
+  100% {
+    opacity: 1;
+    transform: scaleY(1);
+  }
+
+  50% {
+    opacity: 0.85;
+    transform: scaleY(1.05);
+  }
+}
+
+/* Finished team celebration */
+.horse-progress.finished {
+  animation: finish-glow 0.5s ease-out forwards;
+  box-shadow: 0 0 30px currentColor, 0 0 60px currentColor;
+}
+
+@keyframes finish-glow {
+  0% {
+    box-shadow: 0 0 20px currentColor;
+  }
+
+  50% {
+    box-shadow: 0 0 50px currentColor, 0 0 100px currentColor;
+  }
+
+  100% {
+    box-shadow: 0 0 30px currentColor, 0 0 60px currentColor;
+  }
+}
+
+.finish-celebration {
+  font-size: 2rem;
+  animation: celebration-bounce 0.5s ease-out infinite;
+  margin-left: var(--spacing-sm);
+}
+
+@keyframes celebration-bounce {
+
+  0%,
+  100% {
+    transform: translateY(0) scale(1);
+  }
+
+  50% {
+    transform: translateY(-10px) scale(1.2);
+  }
 }
 
 .horse-emoji {
   font-size: 2.5rem;
-}
-
-.horse-score {
-  min-width: 100px;
-  font-size: 1.5rem;
-  font-weight: 900;
-  text-align: right;
 }
 
 /* Result Overlay */
