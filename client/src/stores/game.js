@@ -108,6 +108,27 @@ export const useGameStore = defineStore('game', () => {
       teams.value = data.teams
     })
 
+
+    // Screen init (big screen receives full state)
+    socket.value.on('screen:init', (data) => {
+      if (data.settings) {
+        settings.value = data.settings
+      }
+      if (data.teams) {
+        teams.value = data.teams
+      }
+      if (data.gameState) {
+        updateGameState(data.gameState)
+      }
+      console.log('Screen initialized with settings:', data.settings)
+    })
+
+    // Settings update (for screens when admin changes settings)
+    socket.value.on('settings:update', (newSettings) => {
+      settings.value = newSettings
+      console.log('Settings updated:', newSettings)
+    })
+
     // Game events
     socket.value.on('game:start', (data) => {
       gamePhase.value = data.phase

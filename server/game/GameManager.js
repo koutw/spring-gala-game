@@ -473,8 +473,9 @@ export class GameManager {
 
     this.settings = { ...this.settings, ...newSettings };
 
-    // 廣播設定更新
+    // 廣播設定更新給管理員和大螢幕
     this.io.to('admins').emit('admin:settings', this.settings);
+    this.io.to('screens').emit('settings:update', this.settings);
 
     console.log('Settings updated:', this.settings);
     return { success: true };
