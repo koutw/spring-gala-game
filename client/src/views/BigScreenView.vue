@@ -598,6 +598,8 @@ onMounted(() => {
 
 .horse-emoji {
   font-size: 2.5rem;
+  display: inline-block;
+  transform: scaleX(-1);
 }
 
 /* Result Overlay */
