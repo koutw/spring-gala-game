@@ -102,12 +102,12 @@ export class HorseRacing {
         const { gyroZ, accelY } = data;
 
         if (this.roundState.bonusStage === 0) {
-          // 扭轉模式 (Gyroscope.z)
+          // 搖晃模式 (Gyroscope.z)
           if (Math.abs(gyroZ || 0) > settings.gyroThreshold) {
             increment = 1;
           }
         } else {
-          // Bonus: 也是扭轉模式，但得 2 分
+          // Bonus: 也是搖晃模式，但得 2 分
           if (Math.abs(gyroZ || 0) > settings.gyroThreshold) {
             increment = 2;
           }

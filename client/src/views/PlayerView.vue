@@ -109,7 +109,7 @@
       <!-- Round 2 Warmup: Motion Permission -->
       <div v-else-if="gameStore.gamePhase === 'round2_warmup'" class="warmup-screen">
         <div class="warmup-content" v-animate="'fadeIn'">
-          <div class="warmup-icon">📳</div>
+          <div class="warmup-icon">📱</div>
           <h1>Round 2 準備</h1>
           <p class="warmup-desc">下一回合需要搖晃手機得分</p>
 
@@ -163,7 +163,7 @@
             <div class="twist-phone">📱</div>
           </div>
           <div class="shake-text">
-            {{ gameStore.bonusStage > 0 ? '🔥 BONUS x2 - 繼續扭轉!' : '扭轉手機得分！' }}
+            {{ gameStore.bonusStage > 0 ? '🔥 BONUS x2 - 繼續搖晃!' : '搖晃手機得分！' }}
           </div>
         </div>
 
@@ -905,22 +905,18 @@ watch(() => gameStore.bonusStage, (newStage) => {
 .warmup-icon {
   font-size: 4rem;
   margin-bottom: var(--spacing-md);
-  animation: shake-hint 1s ease-in-out infinite;
+  animation: twist-rotate-player 1s ease-in-out infinite;
 }
 
-@keyframes shake-hint {
+@keyframes twist-rotate-player {
 
   0%,
   100% {
-    transform: rotate(0deg);
+    transform: rotate(-20deg);
   }
 
-  25% {
-    transform: rotate(-10deg);
-  }
-
-  75% {
-    transform: rotate(10deg);
+  50% {
+    transform: rotate(20deg);
   }
 }
 

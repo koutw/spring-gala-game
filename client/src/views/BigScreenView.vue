@@ -98,7 +98,7 @@
       <div class="warmup-content">
         <div class="warmup-icon">📱</div>
         <h1>Round 2 即將開始</h1>
-        <p class="warmup-hint">請查看手機開啟感應器權限</p>
+        <p class="warmup-hint">請開啟手機感應器權限</p>
       </div>
     </div>
 
@@ -107,7 +107,7 @@
       <div class="race-header">
         <div class="round-badge">Round 2 - 搖晃賽馬</div>
         <div class="motion-hint">
-          {{ currentMotionType === 'twist' ? '🔄 扭轉手機' : '⬆️ 上下搖晃' }}
+          {{ currentMotionType === 'twist' ? '🔄 搖晃手機' : '⬆️ 上下搖晃' }}
         </div>
         <div class="bonus-display" v-if="currentBonusStage > 0">
           🔥 BONUS x2

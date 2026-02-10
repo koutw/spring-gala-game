@@ -22,7 +22,7 @@ export class GameManager {
       round1BonusThreshold2: 30000,
       round2BonusThreshold: 15000,
       // 感測門檻
-      gyroThreshold: 2.0,        // 扭轉門檻 (rad/s)
+      gyroThreshold: 2.0,        // 搖晃門檻 (rad/s)
       accelThreshold: 15         // 加速度門檻 (m/s²)
     };
 
