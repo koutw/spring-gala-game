@@ -107,8 +107,8 @@ export class HorseRacing {
             increment = 1;
           }
         } else {
-          // Bonus: 直線上下模式 (Acceleration.y)
-          if (Math.abs(accelY || 0) > settings.accelThreshold) {
+          // Bonus: 也是扭轉模式，但得 2 分
+          if (Math.abs(gyroZ || 0) > settings.gyroThreshold) {
             increment = 2;
           }
         }

@@ -93,6 +93,15 @@
       </div>
     </div>
 
+    <!-- Round 2 Warmup -->
+    <div v-else-if="gameStore.gamePhase === 'round2_warmup'" class="warmup-overlay">
+      <div class="warmup-content">
+        <div class="warmup-icon">📱</div>
+        <h1>Round 2 即將開始</h1>
+        <p class="warmup-hint">請查看手機開啟感應器權限</p>
+      </div>
+    </div>
+
     <!-- Round 2: Shake Race -->
     <div v-else-if="gameStore.gamePhase === 'round2'" class="race-overlay">
       <div class="race-header">
@@ -600,6 +609,47 @@ onMounted(() => {
   font-size: 2.5rem;
   display: inline-block;
   transform: scaleX(-1);
+}
+
+/* Warmup Overlay */
+.warmup-overlay {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.warmup-content {
+  text-align: center;
+}
+
+.warmup-icon {
+  font-size: 6rem;
+  animation: twist-rotate 1s ease-in-out infinite;
+  margin-bottom: var(--spacing-xl);
+}
+
+@keyframes twist-rotate {
+
+  0%,
+  100% {
+    transform: rotate(-20deg);
+  }
+
+  50% {
+    transform: rotate(20deg);
+  }
+}
+
+.warmup-content h1 {
+  font-size: 3rem;
+  margin-bottom: var(--spacing-lg);
+}
+
+.warmup-hint {
+  font-size: 1.5rem;
+  color: var(--text-secondary);
 }
 
 /* Result Overlay */

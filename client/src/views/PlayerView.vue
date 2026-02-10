@@ -159,14 +159,11 @@
         </div>
 
         <div class="shake-area">
-          <div class="shake-instruction">
-            <div class="shake-icon">{{ gameStore.motionType === 'twist' ? '🔄' : '⬆️' }}</div>
-            <div class="shake-text">
-              {{ gameStore.motionType === 'twist' ? '扭轉手機!' : '上下搖晃!' }}
-            </div>
+          <div class="twist-animation">
+            <div class="twist-phone">📱</div>
           </div>
-          <div class="shake-visual" ref="shakeVisualRef">
-            <div class="phone-icon">📱</div>
+          <div class="shake-text">
+            {{ gameStore.bonusStage > 0 ? '🔥 BONUS x2 - 繼續扭轉!' : '扭轉手機得分！' }}
           </div>
         </div>
 
@@ -716,11 +713,11 @@ watch(() => gameStore.bonusStage, (newStage) => {
 }
 
 .tap-button.position-top-right {
-  transform: translate(30px, -50px);
+  transform: translate(80px, -120px);
 }
 
 .tap-button.position-bottom-left {
-  transform: translate(-30px, 50px);
+  transform: translate(-80px, 120px);
 }
 
 .tap-icon {
@@ -741,15 +738,38 @@ watch(() => gameStore.bonusStage, (newStage) => {
   align-items: center;
   justify-content: center;
   text-align: center;
+  pointer-events: none;
 }
 
-.shake-instruction {
-  margin-bottom: var(--spacing-lg);
+.twist-animation {
+  position: relative;
+  margin-bottom: var(--spacing-xl);
 }
 
-.shake-icon {
-  font-size: 4rem;
-  margin-bottom: var(--spacing-sm);
+.twist-phone {
+  font-size: 6rem;
+  animation: twist-rotate 1s ease-in-out infinite;
+}
+
+@keyframes twist-rotate {
+
+  0%,
+  100% {
+    transform: rotate(-20deg);
+  }
+
+  50% {
+    transform: rotate(20deg);
+  }
+}
+
+.twist-arrows {
+  font-size: 2.5rem;
+  position: absolute;
+  bottom: -10px;
+  left: 50%;
+  transform: translateX(-50%);
+  opacity: 0.6;
 }
 
 .shake-text {
