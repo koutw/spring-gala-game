@@ -43,7 +43,7 @@
         <div class="settings-grid">
           <div class="setting-item">
             <label>Round 1 總分</label>
-            <input v-model.number="settings.round1TargetScore" type="number" min="10000" max="100000" step="5000"
+            <input v-model.number="settings.round1TargetScore" type="number" min="100" max="100000" step="100"
               :disabled="gameStore.isRunning" />
             <span class="setting-hint">Bonus: {{ Math.round(settings.round1TargetScore * 0.5) }}, {{
               Math.round(settings.round1TargetScore * 0.75) }}</span>
@@ -51,7 +51,7 @@
 
           <div class="setting-item">
             <label>Round 2 總分</label>
-            <input v-model.number="settings.round2TargetScore" type="number" min="5000" max="50000" step="2500"
+            <input v-model.number="settings.round2TargetScore" type="number" min="100" max="50000" step="100"
               :disabled="gameStore.isRunning" />
             <span class="setting-hint">Bonus: {{ Math.round(settings.round2TargetScore * 0.6) }}</span>
           </div>
@@ -182,7 +182,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, reactive } from 'vue'
+import { ref, computed, onMounted, reactive, watch } from 'vue'
 import { useGameStore } from '../stores/game'
 
 const gameStore = useGameStore()
@@ -193,6 +193,15 @@ const settings = reactive({
   round2TargetScore: 25000,
   leaderboardSize: 20
 })
+
+// 當 gameStore.settings 更新時同步到本地 settings
+watch(() => gameStore.settings, (newSettings) => {
+  if (newSettings) {
+    if (newSettings.round1TargetScore) settings.round1TargetScore = newSettings.round1TargetScore
+    if (newSettings.round2TargetScore) settings.round2TargetScore = newSettings.round2TargetScore
+    if (newSettings.leaderboardSize) settings.leaderboardSize = newSettings.leaderboardSize
+  }
+}, { immediate: true })
 
 // Teams info for QR codes
 const teamsInfo = [

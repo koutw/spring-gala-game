@@ -129,6 +129,20 @@ export const useGameStore = defineStore('game', () => {
       console.log('Settings updated:', newSettings)
     })
 
+    // Admin init - sync settings from server
+    socket.value.on('admin:init', (data) => {
+      if (data.settings) {
+        settings.value = data.settings
+      }
+      if (data.teams) {
+        teams.value = data.teams
+      }
+      if (data.gameState) {
+        updateGameState(data.gameState)
+      }
+      console.log('Admin initialized with settings:', data.settings)
+    })
+
     // Game events
     socket.value.on('game:start', (data) => {
       gamePhase.value = data.phase
