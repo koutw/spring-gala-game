@@ -12,8 +12,8 @@
 
 | 回合 | 操作方式 | 計分 | Bonus 機制 |
 |------|----------|------|------------|
-| **Round 1** | 手機點擊按鈕 | 正常 1 分 / Bonus 2 分 | 按鈕位移增加難度 |
-| **Round 2** | 手機搖晃（陀螺儀） | 正常 1 分 / Bonus 2 分 | 達門檻後進入 Bonus |
+| **Round 1** | 手機點擊按鈕（限時 30 秒） | 正常 1 分 / Bonus 2 分 | 按鈕位移增加難度 |
+| **Round 2** | 手機搖晃（陀螺儀，限時 30 秒） | 正常 1 分 / Bonus 2 分 | 達門檻後進入 Bonus |
 
 ---
 
@@ -122,10 +122,10 @@ spring-gala-game/
 stateDiagram-v2
     [*] --> waiting : 遊戲初始化
     waiting --> round1 : admin:startRound(1)
-    round1 --> round1_result : 所有隊伍達標<br/>或 admin:endRound(1)
+    round1 --> round1_result : 倒計時結束<br/>或 admin:endRound(1)
     round1_result --> round2_warmup : admin:startWarmup
     round2_warmup --> round2 : admin:startRound(2)
-    round2 --> round2_result : 所有隊伍達標<br/>或 admin:endRound(2)
+    round2 --> round2_result : 倒計時結束<br/>或 admin:endRound(2)
     round2_result --> waiting : admin:resetGame
 ```
 
@@ -181,8 +181,10 @@ this.gameState  // Object                    — 當前遊戲狀態
 
 ```javascript
 {
-  round1TargetScore: 40000,    // Round 1 目標分數
-  round2TargetScore: 25000,    // Round 2 目標分數
+  round1TargetScore: 40000,    // Round 1 目標分數（動畫用）
+  round2TargetScore: 25000,    // Round 2 目標分數（動畫用）
+  round1Duration: 30,          // Round 1 時間限制（秒）
+  round2Duration: 30,          // Round 2 時間限制（秒）
   round1BonusThreshold1: 20000,// Round 1 第一階 Bonus 門檻
   round1BonusThreshold2: 30000,// Round 1 第二階 Bonus 門檻
   round2BonusThreshold: 15000, // Round 2 Bonus 門檻
@@ -197,15 +199,21 @@ this.gameState  // Object                    — 當前遊戲狀態
 
 **核心流程**：
 
-1. `start(round)` → 重置分數，啟動 200ms 定時更新
+1. `start(round)` → 重置分數，啟動 200ms 定時更新，啟動倒計時器
 2. 定時器每 200ms 執行：
    - `broadcastUpdate()` → 廣播賽道進度到大螢幕
    - `checkBonusThresholds()` → 檢查是否進入 Bonus 階段
-   - `checkRoundEnd()` → 檢查是否所有隊伍達標
-3. `handleAction(socketId, data)` → 處理玩家動作，更新個人/隊伍分數
-4. `endRound()` → 停止定時器、計算排名、廣播結果
+3. 倒計時器每秒執行：
+   - `broadcastTimer()` → 廣播剩餘時間到所有客戶端
+   - 時間到時自動呼叫 `endRound()`
+4. `handleAction(socketId, data)` → 處理玩家動作，更新個人/隊伍分數（無分數上限）
+5. `endRound()` → 停止定時器、計算排名、廣播結果
 
 **計分邏輯**：
+
+> ℹ️ 分數無上限 — 抵達終點線（目標分數）後仍可繼續累積分數，目標分數僅用於大螢幕賽馬動畫的進度暎示
+
+**賽馬動畫**：
 
 | 回合 | 正常 | Bonus | 感測器 |
 |------|------|-------|--------|
@@ -216,7 +224,9 @@ this.gameState  // Object                    — 當前遊戲狀態
 - Round 1：任一隊伍分數達門檻 → 按鈕位移增加難度
 - Round 2：任一隊伍分數達門檻 → 分數加倍
 
-**分數上限**：當隊伍總分達到目標分數，停止累積（`handleAction` 中檢查）
+**大螢幕賽馬動畫**：
+- 僅做為互動裝飾用途，不影響遊戲勝負
+- 馬匹進度根據目標分數計算，但不會觸發回合結束
 
 ### 6.4 `QuizGame.js` — 問答遊戲（Phase 2）
 
@@ -265,6 +275,7 @@ this.gameState  // Object                    — 當前遊戲狀態
 | `game:stop` | 全體 | — | 遊戲停止 |
 | `bonus:change` | 全體 | `{ bonusStage, buttonPosition, motionType }` | Bonus 狀態變更 |
 | `race:update` | 大螢幕 | `{ horses, round, bonusStage, targetScore }` | 賽道進度更新 |
+| `round:timer` | 全體 | `{ round, timeLeft }` | 回合倒計時（每秒） |
 | `round1:end` / `round2:end` | 全體 | `{ teams, leaderboard, winner }` | 回合結束 |
 | `leaderboard:show` | 全體 | `{ leaderboard, teams }` | 排行榜資料 |
 | `screen:init` | 大螢幕 | `{ settings, teams, gameState }` | 大螢幕初始化 |

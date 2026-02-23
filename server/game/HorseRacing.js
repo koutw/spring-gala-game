@@ -6,6 +6,9 @@ export class HorseRacing {
   constructor(gameManager) {
     this.gameManager = gameManager;
     this.updateInterval = null;
+    this.roundTimer = null;       // 回合結束倒計時
+    this.timerInterval = null;    // 每秒廣播剩餘時間
+    this.timeLeft = 0;            // 剩餘秒數
     this.currentRound = 0;
 
     // Round 狀態
@@ -41,28 +44,51 @@ export class HorseRacing {
       });
     }
 
+    // 取得回合時間限制
+    const duration = round === 1
+      ? this.gameManager.settings.round1Duration
+      : this.gameManager.settings.round2Duration;
+    this.timeLeft = duration;
+
     // 每 200ms 更新賽道和排行榜
     this.updateInterval = setInterval(() => {
       this.broadcastUpdate();
       this.checkBonusThresholds();
-      this.checkRoundEnd();
     }, 200);
+
+    // 每秒廣播剩餘時間
+    this.timerInterval = setInterval(() => {
+      this.timeLeft--;
+      this.broadcastTimer();
+      if (this.timeLeft <= 0) {
+        this.endRound();
+      }
+    }, 1000);
 
     // 廣播開始
     this.gameManager.io.emit(`round${round}:start`, {
       round,
+      duration,
       targetScore: round === 1
         ? this.gameManager.settings.round1TargetScore
         : this.gameManager.settings.round2TargetScore
     });
 
-    console.log(`Round ${round} started!`);
+    console.log(`Round ${round} started! Duration: ${duration}s`);
   }
 
   stop() {
     if (this.updateInterval) {
       clearInterval(this.updateInterval);
       this.updateInterval = null;
+    }
+    if (this.timerInterval) {
+      clearInterval(this.timerInterval);
+      this.timerInterval = null;
+    }
+    if (this.roundTimer) {
+      clearTimeout(this.roundTimer);
+      this.roundTimer = null;
     }
   }
 
@@ -74,19 +100,6 @@ export class HorseRacing {
     if (!team) return;
 
     const { settings } = this.gameManager;
-
-    // 檢查該隊是否已達到目標分數
-    const targetScore = this.currentRound === 1
-      ? settings.round1TargetScore
-      : settings.round2TargetScore;
-    const currentTeamScore = this.currentRound === 1
-      ? team.round1Score
-      : team.round2Score;
-
-    // 如果隊伍已達到目標分數，不再累積積分
-    if (currentTeamScore >= targetScore) {
-      return;
-    }
 
     let increment = 0;
 
@@ -182,22 +195,11 @@ export class HorseRacing {
     console.log(`Bonus stage changed: Round ${this.currentRound}, Stage ${this.roundState.bonusStage}`);
   }
 
-  checkRoundEnd() {
-    const { settings } = this.gameManager;
-    const teams = Array.from(this.gameManager.teams.values());
-    const targetScore = this.currentRound === 1
-      ? settings.round1TargetScore
-      : settings.round2TargetScore;
-
-    // 檢查是否所有隊伍都達到目標分數
-    const allFinished = teams.every(team => {
-      const score = this.currentRound === 1 ? team.round1Score : team.round2Score;
-      return score >= targetScore;
+  broadcastTimer() {
+    this.gameManager.io.emit('round:timer', {
+      round: this.currentRound,
+      timeLeft: Math.max(this.timeLeft, 0)
     });
-
-    if (allFinished) {
-      this.endRound();
-    }
   }
 
   endRound() {

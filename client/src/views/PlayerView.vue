@@ -65,6 +65,9 @@
           <div class="bonus-indicator" v-if="gameStore.bonusStage > 0">
             🔥 BONUS x2
           </div>
+          <div class="timer-display">
+            ⏱️ {{ gameStore.roundTimeLeft }}s
+          </div>
         </div>
 
         <div class="tap-area">
@@ -156,6 +159,9 @@
           </div>
           <div class="bonus-indicator" v-if="gameStore.bonusStage > 0">
             🔥 BONUS x2
+          </div>
+          <div class="timer-display">
+            ⏱️ {{ gameStore.roundTimeLeft }}s
           </div>
         </div>
 
@@ -822,6 +828,13 @@ watch(() => gameStore.bonusStage, (newStage) => {
   border-radius: var(--border-radius-full);
   display: inline-block;
   animation: pulse 0.5s ease-in-out infinite;
+}
+
+.timer-display {
+  margin-top: var(--spacing-sm);
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: var(--text-secondary);
 }
 
 @keyframes pulse {

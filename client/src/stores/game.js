@@ -33,6 +33,7 @@ export const useGameStore = defineStore('game', () => {
   const bonusStage = ref(0)
   const buttonPosition = ref(0)    // Round 1 按鈕位置
   const motionType = ref('twist')  // Round 2 搖晃類型
+  const roundTimeLeft = ref(0)     // 回合剩餘時間（秒）
 
   // Teams and players
   const teams = ref([])
@@ -185,6 +186,7 @@ export const useGameStore = defineStore('game', () => {
       bonusStage.value = 0
       buttonPosition.value = 0
       motionType.value = 'twist'
+      roundTimeLeft.value = data.duration || 30
     })
 
     socket.value.on('game:stop', () => {
@@ -199,6 +201,7 @@ export const useGameStore = defineStore('game', () => {
       score.value = 0
       bonusStage.value = 0
       buttonPosition.value = 0
+      roundTimeLeft.value = data.duration || 30
     })
 
     socket.value.on('round1:end', (data) => {
@@ -220,6 +223,7 @@ export const useGameStore = defineStore('game', () => {
       score.value = 0
       bonusStage.value = 0
       motionType.value = 'twist'
+      roundTimeLeft.value = data.duration || 30
     })
 
     socket.value.on('round2:end', (data) => {
@@ -278,6 +282,11 @@ export const useGameStore = defineStore('game', () => {
       bonusStage.value = data.bonusStage
       buttonPosition.value = data.buttonPosition
       motionType.value = data.motionType
+    })
+
+    // Round timer countdown
+    socket.value.on('round:timer', (data) => {
+      roundTimeLeft.value = data.timeLeft
     })
 
     // Leaderboard
@@ -451,6 +460,7 @@ export const useGameStore = defineStore('game', () => {
     bonusStage,
     buttonPosition,
     motionType,
+    roundTimeLeft,
     teams,
     playerCount,
     adminAuthenticated,

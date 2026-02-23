@@ -63,7 +63,19 @@
 
           <div class="settings-grid">
             <div class="setting-item">
-              <label>Round 1 總分</label>
+              <label>Round 1 時間（秒）</label>
+              <input v-model.number="settings.round1Duration" type="number" min="5" max="300" step="5"
+                :disabled="gameStore.isRunning" />
+            </div>
+
+            <div class="setting-item">
+              <label>Round 2 時間（秒）</label>
+              <input v-model.number="settings.round2Duration" type="number" min="5" max="300" step="5"
+                :disabled="gameStore.isRunning" />
+            </div>
+
+            <div class="setting-item">
+              <label>Round 1 目標分數（動畫用）</label>
               <input v-model.number="settings.round1TargetScore" type="number" min="100" max="100000" step="100"
                 :disabled="gameStore.isRunning" />
               <span class="setting-hint">Bonus: {{ Math.round(settings.round1TargetScore * 0.5) }}, {{
@@ -71,7 +83,7 @@
             </div>
 
             <div class="setting-item">
-              <label>Round 2 總分</label>
+              <label>Round 2 目標分數（動畫用）</label>
               <input v-model.number="settings.round2TargetScore" type="number" min="100" max="50000" step="100"
                 :disabled="gameStore.isRunning" />
               <span class="setting-hint">Bonus: {{ Math.round(settings.round2TargetScore * 0.6) }}</span>
@@ -246,6 +258,8 @@ const loginPassword = ref('')
 
 // Settings
 const settings = reactive({
+  round1Duration: 30,
+  round2Duration: 30,
   round1TargetScore: 40000,
   round2TargetScore: 25000,
   leaderboardSize: 20
@@ -254,6 +268,8 @@ const settings = reactive({
 // 當 gameStore.settings 更新時同步到本地 settings
 watch(() => gameStore.settings, (newSettings) => {
   if (newSettings) {
+    if (newSettings.round1Duration) settings.round1Duration = newSettings.round1Duration
+    if (newSettings.round2Duration) settings.round2Duration = newSettings.round2Duration
     if (newSettings.round1TargetScore) settings.round1TargetScore = newSettings.round1TargetScore
     if (newSettings.round2TargetScore) settings.round2TargetScore = newSettings.round2TargetScore
     if (newSettings.leaderboardSize) settings.leaderboardSize = newSettings.leaderboardSize

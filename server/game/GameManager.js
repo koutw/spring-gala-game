@@ -16,8 +16,10 @@ export class GameManager {
 
     // 遊戲設定（可由控制台調整）
     this.settings = {
-      round1TargetScore: 40000,  // Round 1 目標分數
-      round2TargetScore: 25000,  // Round 2 目標分數
+      round1TargetScore: 40000,  // Round 1 目標分數（動畫用）
+      round2TargetScore: 25000,  // Round 2 目標分數（動畫用）
+      round1Duration: 30,        // Round 1 時間限制（秒）
+      round2Duration: 30,        // Round 2 時間限制（秒）
       leaderboardSize: 20,       // 排行榜顯示人數
       round1BonusThreshold1: 20000,
       round1BonusThreshold2: 30000,
