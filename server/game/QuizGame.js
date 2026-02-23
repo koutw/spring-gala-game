@@ -246,13 +246,17 @@ export class QuizGame {
     // 處理計分邏輯
     // A. 無敵星星題 (star): 答對 +1 分
     // B. 金幣題 (coin): 搶答，前 100 名答對 +1 分
-    // C. 龜殼題 (shell): 答錯 -1 分
+    // C. 龜殼題 (shell): 答錯或未作答 -1 分，且允許負分
 
     // Sort answers by timestamp for coin (fastest first)
     const sortedAnswers = Array.from(this.answers.values()).sort((a, b) => a.timestamp - b.timestamp);
     let correctCount = 0;
 
+    // 記錄有作答的玩家
+    const answeredPlayers = new Set();
+
     sortedAnswers.forEach((answer) => {
+      answeredPlayers.add(answer.playerId);
       const player = this.gameManager.players.get(answer.playerId);
       if (!player) return;
 
@@ -278,9 +282,6 @@ export class QuizGame {
       if (player.score === undefined) player.score = 0;
       player.score += scoreChange;
 
-      // 不允許負分
-      if (player.score < 0) player.score = 0;
-
       // Ensure totalScore is updated
       player.totalScore = (player.round1Score || 0) + player.score;
 
@@ -301,11 +302,32 @@ export class QuizGame {
       });
     });
 
-    // 針對沒有作答的人，如果是龜殼題也要給予懲罰嗎？
-    // 根據需求描述 "答錯者扣1分"，這裡先定義為有送出錯誤答案才扣分。
-    // 如果不作答也算錯，可以遍歷所有連線玩家處理。
+    // 處理未作答的玩家 (僅在龜殼題時扣分)
+    if (questionType === 'shell') {
+      this.gameManager.players.forEach((player, socketId) => {
+        if (!answeredPlayers.has(socketId) && player.teamId) { // Only process active players in a team
+          // 確保 player score 屬性存在
+          if (player.score === undefined) player.score = 0;
 
-    // Broadcast reveal
+          player.score -= 1; // 龜殼題未作答扣 1 分
+          player.totalScore = (player.round1Score || 0) + player.score;
+
+          this.gameManager.io.to(socketId).emit('phase2:result', {
+            correct: false,
+            correctIndex,
+            yourAnswer: null, // 未作答
+            scoreChange: -1,
+            newScore: player.score,
+            wasInTop100: false
+          });
+
+          this.gameManager.io.to(socketId).emit('player:score', {
+            score: player.score,
+            totalScore: player.totalScore
+          });
+        }
+      });
+    }
 
     // Broadcast reveal
     this.gameManager.io.emit('phase2:reveal', {
