@@ -23,6 +23,11 @@ export const useGameStore = defineStore('game', () => {
   const totalScore = ref(0)
   const leaderboard = ref([])
 
+  // Phase 2 (Quiz) state
+  const phase2Question = ref(null)
+  const phase2Stats = ref({ answered: 0, total: 0, distribution: [] })
+  const phase2Result = ref(null)
+
   // Round state
   const bonusStage = ref(0)
   const buttonPosition = ref(0)    // Round 1 按鈕位置
@@ -196,6 +201,44 @@ export const useGameStore = defineStore('game', () => {
       teams.value = data.teams
     })
 
+    // Phase 2 (Quiz) events
+    socket.value.on('phase2:start', (data) => {
+      gamePhase.value = 'phase2'
+      isRunning.value = true
+    })
+
+    socket.value.on('phase2:question', (data) => {
+      gamePhase.value = 'phase2_question'
+      phase2Question.value = data
+      phase2Stats.value = { answered: 0, total: 0, distribution: [] }
+      phase2Result.value = null
+    })
+
+    socket.value.on('phase2:answerCount', (data) => {
+      phase2Stats.value = data
+    })
+
+    socket.value.on('phase2:reveal', (data) => {
+      gamePhase.value = 'phase2_reveal'
+      // Global reveal info
+      if (!phase2Result.value) phase2Result.value = {}
+      phase2Result.value.correctIndex = data.correctIndex
+      teams.value = data.teams
+    })
+
+    socket.value.on('phase2:result', (data) => {
+      // Individual result info
+      if (!phase2Result.value) phase2Result.value = {}
+      phase2Result.value.correct = data.correct
+      phase2Result.value.yourAnswer = data.yourAnswer
+    })
+
+    socket.value.on('phase2:end', (data) => {
+      gamePhase.value = 'phase2_end'
+      isRunning.value = false
+      teams.value = data.rankings
+    })
+
     // Player score update
     socket.value.on('player:score', (data) => {
       score.value = data.score
@@ -270,6 +313,10 @@ export const useGameStore = defineStore('game', () => {
     socket.value?.emit('player:action', { type: 'shake', gyroZ, accelY })
   }
 
+  function sendAnswer(answerIndex) {
+    socket.value?.emit('player:answer', { answerIndex })
+  }
+
   // Screen actions
   function joinAsScreen() {
     socket.value?.emit('screen:join')
@@ -282,6 +329,10 @@ export const useGameStore = defineStore('game', () => {
 
   function startRound(round) {
     socket.value?.emit('admin:startRound', { round })
+  }
+
+  function startPhase2() {
+    socket.value?.emit('admin:startRound', { round: 'phase2' })
   }
 
   function startWarmup() {
@@ -354,6 +405,9 @@ export const useGameStore = defineStore('game', () => {
     score,
     totalScore,
     leaderboard,
+    phase2Question,
+    phase2Stats,
+    phase2Result,
     bonusStage,
     buttonPosition,
     motionType,
@@ -365,9 +419,11 @@ export const useGameStore = defineStore('game', () => {
     joinGame,
     sendTap,
     sendShake,
+    sendAnswer,
     joinAsScreen,
     joinAsAdmin,
     startRound,
+    startPhase2,
     startWarmup,
     updateSettings,
     clearSession

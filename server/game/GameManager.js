@@ -1,5 +1,6 @@
 import { v4 as uuidv4 } from 'uuid';
 import { HorseRacing } from './HorseRacing.js';
+import { QuizGame } from './QuizGame.js';
 import { RedisStore } from './RedisStore.js';
 
 /**
@@ -53,6 +54,7 @@ export class GameManager {
 
     // 遊戲實例
     this.horseRacing = new HorseRacing(this);
+    this.quizGame = new QuizGame(this);
 
     // 初始化隊伍
     this.initializeTeams();
@@ -231,10 +233,25 @@ export class GameManager {
 
     // 檢查 employeeId 是否已被使用
     if (this.playersByEmployeeId.has(normalizedEmployeeId)) {
-      socket.emit('player:error', {
-        message: '此員工編號已在遊戲中，請使用原裝置重新連線'
-      });
-      return;
+      // Allow takeover instead of rejection
+      console.log(`Player takeover: ${normalizedEmployeeId}`);
+
+      // Invalidate old session token if exists
+      const existingPlayer = this.playersByEmployeeId.get(normalizedEmployeeId);
+      if (existingPlayer.sessionToken) {
+        this.sessionTokens.delete(existingPlayer.sessionToken);
+      }
+
+      // Generate new token for the new session
+      const newSessionToken = this.generateSessionToken();
+      existingPlayer.sessionToken = newSessionToken;
+      this.sessionTokens.set(newSessionToken, normalizedEmployeeId);
+
+      // Update Redis immediately to ensure consistency
+      this.redis.savePlayer(normalizedEmployeeId, existingPlayer);
+
+      // Perform reconnection logic with new token
+      return this.reconnectPlayer(socket, normalizedEmployeeId, newSessionToken);
     }
 
     // 驗證隊伍 ID
@@ -441,13 +458,24 @@ export class GameManager {
     this.admins.delete(socketId);
   }
 
-  // 處理玩家動作
+  // 處理玩家動作 (Phase 1/2)
   handlePlayerAction(socketId, data) {
     if (!this.gameState.isRunning) return;
 
     if (this.gameState.phase === 'round1' || this.gameState.phase === 'round2') {
       this.horseRacing.handleAction(socketId, data);
     }
+  }
+
+  // 處理玩家問答 (Phase 2)
+  handlePlayerAnswer(socketId, data) {
+    if (!this.gameState.isRunning) return;
+    this.quizGame.handleAnswer(socketId, data);
+  }
+
+  // 發送問答題目 (Admin 控制)
+  sendQuestion(question, customType) {
+    this.quizGame.sendQuestion(question, customType);
   }
 
   // 更新設定
@@ -482,32 +510,41 @@ export class GameManager {
   }
 
   // 開始遊戲
-  startGame(round) {
-    if (round === 1) {
+  startGame(roundOrPhase, settings = null) {
+    if (roundOrPhase === 1) {
       this.gameState.phase = 'round1';
       this.gameState.currentRound = 1;
-    } else if (round === 2) {
+      this.gameState.isRunning = true;
+      this.gameState.startTime = Date.now();
+      this.horseRacing.start(1);
+      this.io.emit('game:start', { phase: this.gameState.phase, round: 1 });
+      console.log(`Game started: Round 1`);
+    } else if (roundOrPhase === 2) {
       this.gameState.phase = 'round2';
       this.gameState.currentRound = 2;
+      this.gameState.isRunning = true;
+      this.gameState.startTime = Date.now();
+      this.horseRacing.start(2);
+      this.io.emit('game:start', { phase: this.gameState.phase, round: 2 });
+      console.log(`Game started: Round 2`);
+    } else if (roundOrPhase === 'phase2') {
+      this.gameState.phase = 'phase2';
+      this.gameState.currentRound = 'quiz';
+      if (settings) {
+        this.settings.phase2TimePerQuestion = settings.timePerQuestion || 15;
+      }
+      this.gameState.isRunning = true;
+      this.gameState.startTime = Date.now();
+      this.quizGame.start();
+      console.log(`Game started: Phase 2 Quiz`);
     }
-
-    this.gameState.isRunning = true;
-    this.gameState.startTime = Date.now();
-
-    this.horseRacing.start(round);
-
-    this.io.emit('game:start', {
-      phase: this.gameState.phase,
-      round
-    });
-
-    console.log(`Game started: Round ${round}`);
   }
 
   // 停止遊戲
   stopGame() {
     this.gameState.isRunning = false;
     this.horseRacing.stop();
+    this.quizGame.stop();
     this.io.emit('game:stop', {});
     console.log('Game stopped');
   }
@@ -526,8 +563,11 @@ export class GameManager {
     // 確認是正確的回合
     if (this.gameState.currentRound !== round) return;
 
-    // 呼叫 HorseRacing 的 endRound 方法
-    this.horseRacing.endRound();
+    if (round === 'quiz') {
+      this.quizGame.end();
+    } else {
+      this.horseRacing.endRound();
+    }
     console.log(`Round ${round} ended by admin`);
   }
 

@@ -94,6 +94,32 @@
         </div>
 
         <div class="control-section">
+          <h3>第二階段：伯樂與千里馬</h3>
+
+          <div class="round-controls phase2-controls">
+            <button class="btn btn-primary btn-large" @click="startPhase2"
+              :disabled="gameStore.isRunning || !['round2_result', 'finished'].includes(gameStore.gamePhase) && gameStore.gamePhase !== 'phase2_end'">
+              開始 問答遊戲 🧠
+            </button>
+
+            <div class="question-type-selector">
+              <label>題目類型：</label>
+              <select v-model="selectedPhase2Type" class="input"
+                :disabled="!['phase2', 'phase2_reveal'].includes(gameStore.gamePhase)">
+                <option value="star">⭐ 無敵星星題 (答對+1)</option>
+                <option value="coin">💰 金幣題 (前100名答對+1)</option>
+                <option value="shell">🐢 龜殼題 (答錯-1)</option>
+              </select>
+            </div>
+
+            <button class="btn btn-secondary btn-large" @click="nextQuestion"
+              :disabled="!['phase2', 'phase2_reveal'].includes(gameStore.gamePhase)">
+              發送下道題目 📝
+            </button>
+          </div>
+        </div>
+
+        <div class="control-section">
           <h3>排行榜</h3>
           <div class="leaderboard-controls">
             <button class="btn btn-secondary" @click="showLeaderboard('round1')">
@@ -115,6 +141,10 @@
             <button class="btn btn-danger" @click="endRound(2)"
               :disabled="!gameStore.isRunning || gameStore.gamePhase !== 'round2'">
               結束 Round 2 🏁
+            </button>
+            <button class="btn btn-danger" @click="endRound('quiz')"
+              :disabled="!['phase2', 'phase2_question', 'phase2_reveal'].includes(gameStore.gamePhase)">
+              結束 問答遊戲 🏁
             </button>
             <button class="btn btn-danger btn-large" @click="stopGame" :disabled="!gameStore.isRunning">
               停止遊戲 ⛔
@@ -221,7 +251,11 @@ const phaseLabel = computed(() => {
     round1_result: 'Round 1 結果',
     round2_warmup: 'Round 2 暖身中',
     round2: 'Round 2 進行中',
-    round2_result: '最終結果',
+    round2_result: 'R2 結果',
+    phase2: '問答遊戲準備中',
+    phase2_question: '作答時間',
+    phase2_reveal: '解答公布',
+    phase2_end: '問答結果',
     finished: '已結束'
   }
   return labels[gameStore.gamePhase] || '未知'
@@ -245,9 +279,19 @@ function stopGame() {
 }
 
 function endRound(round) {
-  if (confirm(`確定要結束 Round ${round} 嗎？將立即進入積分畫面。`)) {
+  if (confirm(`確定要結束此階段了嗎？將立即進入積分畫面。`)) {
     gameStore.socket?.emit('admin:endRound', { round })
   }
+}
+
+function startPhase2() {
+  gameStore.startPhase2()
+}
+
+const selectedPhase2Type = ref('star')
+
+function nextQuestion() {
+  gameStore.socket?.emit('admin:nextQuestion', { questionType: selectedPhase2Type.value })
 }
 
 function showLeaderboard(type) {

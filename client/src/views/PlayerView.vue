@@ -15,7 +15,8 @@
         <form @submit.prevent="joinGame" class="join-form">
           <div class="form-group">
             <label>員工編號</label>
-            <input v-model="employeeId" class="input" placeholder="輸入你的員工編號" maxlength="20" required />
+            <input v-model="employeeId" ref="employeeIdInput" class="input" placeholder="輸入你的員工編號" maxlength="20"
+              required />
           </div>
 
           <!-- Team display (from QR code) -->
@@ -175,28 +176,84 @@
         </div>
       </div>
 
-      <!-- Round 2 Result / Final Result -->
-      <div v-else-if="gameStore.gamePhase === 'round2_result'" class="result-screen">
-        <div class="result-content" v-animate="'scaleIn'">
-          <div class="result-icon">🏆</div>
-          <h1>最終積分榜</h1>
+      <!-- Phase 2: Quiz Mode -->
+      <div v-else-if="['phase2', 'phase2_question', 'phase2_reveal'].includes(gameStore.gamePhase)" class="quiz-screen">
+        <div class="round-header">
+          <div class="round-badge phase2-badge">第二階段 問答</div>
+          <div class="score-display">
+            {{ gameStore.score }}
+            <span class="score-label">分</span>
+          </div>
+        </div>
 
-          <div class="your-result">
-            <p>你的總分</p>
-            <div class="score-display">{{ gameStore.totalScore }}</div>
+        <div v-if="gameStore.gamePhase === 'phase2'" class="waiting-quiz">
+          <div class="quiz-icon">🧠</div>
+          <h2>準備聽題...</h2>
+          <p>請注意大螢幕題目！</p>
+        </div>
+
+        <div v-else-if="gameStore.phase2Question" class="quiz-area">
+          <h3 class="q-number">Q{{ gameStore.phase2Question.questionNumber + 1 }}</h3>
+
+          <div class="options-list">
+            <button v-for="(opt, idx) in gameStore.phase2Question.options" :key="idx" class="option-btn" :class="{
+              'selected': myAnswer === idx,
+              'correct': gameStore.gamePhase === 'phase2_reveal' && gameStore.phase2Result?.correctIndex === idx,
+              'wrong': gameStore.gamePhase === 'phase2_reveal' && myAnswer === idx && !gameStore.phase2Result?.correct
+            }" @click="submitAnswer(idx)" :disabled="myAnswer !== null || gameStore.gamePhase !== 'phase2_question'">
+              <span class="opt-label">{{ ['A', 'B', 'C', 'D'][idx] }}</span>
+              <span class="opt-text">{{ opt }}</span>
+            </button>
           </div>
 
-          <div class="top-players">
-            <h3>🏆 前 20 名</h3>
-            <div v-for="(player, index) in gameStore.leaderboard?.slice(0, 10)" :key="player.id"
-              class="top-player-item">
-              <span class="rank-badge" :class="getRankClass(index)">{{ index + 1 }}</span>
-              <span class="player-name">{{ player.employeeId }}</span>
-              <span class="player-score">{{ player.score }}</span>
+          <div class="quiz-status" v-if="gameStore.gamePhase === 'phase2_reveal' && myAnswer !== null">
+            <div class="status-msg"
+              :class="gameStore.phase2Result?.scoreChange > 0 ? 'msg-correct' : (gameStore.phase2Result?.scoreChange < 0 ? 'msg-wrong' : '')">
+
+              <template v-if="gameStore.phase2Result?.scoreChange > 0">
+                🎉 答對了！+{{ gameStore.phase2Result?.scoreChange }}分
+                <div v-if="gameStore.phase2Result?.wasInTop100" class="sub-msg">恭喜進入前 100 名！💰</div>
+              </template>
+
+              <template v-else-if="gameStore.phase2Result?.scoreChange < 0">
+                ❌ 答錯了！{{ gameStore.phase2Result?.scoreChange }}分 🐢
+              </template>
+
+              <template v-else>
+                <span v-if="gameStore.phase2Result?.correct">
+                  ✅ 答對了！(金幣題：未在百名內，無加分)
+                </span>
+                <span v-else>
+                  ❌ 答錯了！(未扣分)
+                </span>
+              </template>
             </div>
           </div>
         </div>
+
+        <div class="round-footer">
+          <div class="team-info">
+            <span class="team-dot" :style="{ background: gameStore.team?.color }"></span>
+            {{ gameStore.team?.name }}
+          </div>
+        </div>
       </div>
+
+      <!-- Phase 2 Final Result -->
+      <div v-else-if="gameStore.gamePhase === 'phase2_end'" class="result-screen">
+        <div class="result-content" v-animate="'scaleIn'">
+          <div class="result-icon">🏆</div>
+          <h1>問答結束！</h1>
+
+          <div class="your-result">
+            <p>你的問答總分</p>
+            <div class="score-display">{{ gameStore.score }}</div>
+          </div>
+
+          <p class="waiting-next">請看大螢幕公布排行榜！</p>
+        </div>
+      </div>
+
     </div>
   </div>
 </template>
@@ -220,17 +277,22 @@ const scoreDisplayRef = ref(null)
 const tapButtonRef = ref(null)
 const shakeVisualRef = ref(null)
 const shakeTestRef = ref(null)
+const employeeIdInput = ref(null)
 
 // Motion sensors
 let lastShakeTime = 0
 let gyroscope = null
 let accelerometer = null
+let wakeLock = null
 
 // Motion permission state (for iOS)
 const motionPermissionGranted = ref(false)
 const permissionStatus = ref('idle') // idle, requesting, granted, denied
 const testShakeCount = ref(0)
 const testShakeActive = ref(false)
+
+// Quiz State
+const myAnswer = ref(null)
 
 // Team info
 const teamColors = {
@@ -286,6 +348,11 @@ function getRankClass(index) {
 function joinGame() {
   const teamId = urlTeamId.value || 'blue'
   gameStore.joinGame(employeeId.value, teamId)
+
+  // Blur input to help prevent "Shake to Undo" on iOS
+  if (employeeIdInput.value) {
+    employeeIdInput.value.blur()
+  }
 }
 
 function handleTap() {
@@ -305,6 +372,12 @@ function handleTap() {
   if (scoreDisplayRef.value) {
     animations.scoreUp(scoreDisplayRef.value)
   }
+}
+
+function submitAnswer(idx) {
+  if (myAnswer.value !== null || gameStore.gamePhase !== 'phase2_question') return
+  myAnswer.value = idx
+  gameStore.sendAnswer(idx)
 }
 
 // Motion detection for Round 2
@@ -431,6 +504,34 @@ function animateShake() {
   }
 }
 
+async function requestWakeLock() {
+  if ('wakeLock' in navigator) {
+    try {
+      wakeLock = await navigator.wakeLock.request('screen')
+      console.log('Wake Lock acquired')
+
+      wakeLock.addEventListener('release', () => {
+        console.log('Wake Lock released')
+      })
+    } catch (err) {
+      console.error(`Wake Lock error: ${err.name}, ${err.message}`)
+    }
+  }
+}
+
+function releaseWakeLock() {
+  if (wakeLock) {
+    wakeLock.release()
+    wakeLock = null
+  }
+}
+
+async function handleVisibilityChange() {
+  if (wakeLock !== null && document.visibilityState === 'visible') {
+    await requestWakeLock()
+  }
+}
+
 function cleanupMotionSensors() {
   if (gyroscope) gyroscope.stop()
   if (accelerometer) accelerometer.stop()
@@ -456,6 +557,17 @@ onMounted(() => {
     permissionStatus.value = 'granted'
   }
 
+  // Prevent iOS "Shake to Undo" dialog
+  window.addEventListener('undo', handleUndo, { capture: true })
+  window.addEventListener('beforeinput', handleBeforeInput, { capture: true })
+
+  // Handle screen sleep prevention
+  document.addEventListener('visibilitychange', handleVisibilityChange)
+  // Request wake lock if player is already logged in (e.g. on refresh)
+  if (gameStore.player) {
+    requestWakeLock()
+  }
+
   // Waiting icon animation
   if (waitingIconRef.value) {
     animations.bounce(waitingIconRef.value)
@@ -464,6 +576,46 @@ onMounted(() => {
 
 onUnmounted(() => {
   cleanupMotionSensors()
+  window.removeEventListener('undo', handleUndo, { capture: true })
+  window.removeEventListener('beforeinput', handleBeforeInput, { capture: true })
+  document.removeEventListener('visibilitychange', handleVisibilityChange)
+  releaseWakeLock()
+})
+
+function handleUndo(e) {
+  e.preventDefault()
+  e.stopPropagation()
+}
+
+function handleBeforeInput(e) {
+  if (e.inputType === 'historyUndo' || e.inputType === 'historyRedo') {
+    e.preventDefault()
+    e.stopPropagation()
+  }
+}
+
+// Watch for phase changes to ensure input is blurred
+watch(() => gameStore.gamePhase, (newPhase) => {
+  if (newPhase === 'round2_warmup' || newPhase === 'round2') {
+    // Force blur any active element to prevent shake-to-undo
+    if (document.activeElement && typeof document.activeElement.blur === 'function') {
+      document.activeElement.blur()
+    }
+  }
+
+  // Reset myAnswer when a new question starts
+  if (newPhase === 'phase2_question') {
+    myAnswer.value = null
+  }
+})
+
+// Request wake lock when player joins
+watch(() => gameStore.player, (newPlayer) => {
+  if (newPlayer) {
+    requestWakeLock()
+  } else {
+    releaseWakeLock()
+  }
 })
 
 // Watch for bonus changes
@@ -982,5 +1134,123 @@ watch(() => gameStore.bonusStage, (newStage) => {
   margin-top: var(--spacing-md);
   font-size: 0.85rem;
   opacity: 0.7;
+}
+
+/* Phase 2 Quiz Screen */
+.quiz-screen {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  padding: var(--spacing-lg);
+  padding-top: calc(var(--spacing-lg) + env(safe-area-inset-top) + 100px);
+  padding-bottom: calc(var(--spacing-lg) + env(safe-area-inset-bottom) + 100px);
+}
+
+.phase2-badge {
+  background: linear-gradient(135deg, #FF9F43, #FF6B6B);
+}
+
+.waiting-quiz {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+.quiz-icon {
+  font-size: 5rem;
+  margin-bottom: var(--spacing-md);
+  animation: pulse 2s infinite ease-in-out;
+}
+
+.quiz-area {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.q-number {
+  font-size: 2rem;
+  font-weight: 900;
+  text-align: center;
+  color: var(--primary);
+  margin-bottom: var(--spacing-xl);
+}
+
+.options-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+}
+
+.option-btn {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+  padding: var(--spacing-md) var(--spacing-lg);
+  background: rgba(255, 255, 255, 0.1);
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  border-radius: var(--border-radius-lg);
+  color: #fff;
+  font-size: 1.25rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-align: left;
+}
+
+.option-btn:not(:disabled):active {
+  transform: scale(0.98);
+}
+
+.option-btn.selected {
+  background: rgba(108, 92, 231, 0.3);
+  border-color: var(--primary);
+}
+
+.option-btn.correct {
+  background: rgba(0, 184, 148, 0.3);
+  border-color: var(--success);
+}
+
+.option-btn.wrong {
+  background: rgba(225, 112, 85, 0.3);
+  border-color: var(--danger);
+}
+
+.opt-label {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: var(--border-radius-sm);
+  font-weight: 900;
+  color: var(--primary);
+}
+
+.quiz-status {
+  text-align: center;
+  margin-top: var(--spacing-xl);
+  font-size: 1.5rem;
+  font-weight: 900;
+}
+
+.sub-msg {
+  font-size: 1.1rem;
+  color: #FFD700;
+  margin-top: var(--spacing-xs);
+}
+
+.msg-correct {
+  color: var(--success);
+}
+
+.msg-wrong {
+  color: var(--danger);
 }
 </style>

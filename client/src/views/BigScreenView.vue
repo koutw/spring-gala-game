@@ -139,6 +139,76 @@
       </div>
     </div>
 
+    <!-- Phase 2: Quiz Game Overlay -->
+    <div v-else-if="['phase2', 'phase2_question', 'phase2_reveal'].includes(gameStore.gamePhase)" class="quiz-overlay">
+      <div class="quiz-content">
+        <h1 class="phase-title">第二階段：伯樂與千里馬</h1>
+
+        <div v-if="gameStore.phase2Question" class="question-container">
+          <div class="q-type-badge" v-if="questionTypeName">
+            {{ questionTypeName }}
+          </div>
+          <h2 class="question-text">
+            <span class="q-number">Q{{ gameStore.phase2Question.questionNumber + 1 }}</span>
+            {{ gameStore.phase2Question.text }}
+          </h2>
+
+          <div class="options-grid">
+            <div v-for="(opt, idx) in gameStore.phase2Question.options" :key="idx" class="option-card" :class="{
+              'correct': gameStore.gamePhase === 'phase2_reveal' && gameStore.phase2Result?.correctIndex === idx,
+              'wrong': gameStore.gamePhase === 'phase2_reveal' && gameStore.phase2Result?.correctIndex !== idx
+            }">
+
+              <div class="option-content">
+                <span class="option-label">{{ ['A', 'B', 'C', 'D'][idx] }}</span>
+                <span class="option-text">{{ opt }}</span>
+              </div>
+
+              <!-- 5秒後顯示的長條圖與人數 -->
+              <div class="stat-bar-container" :class="{ 'show': showQuizStats }">
+                <div class="stat-bar-bg">
+                  <div class="stat-bar-fill" :style="{ width: getOptionPercentage(idx) + '%' }"></div>
+                  <span class="stat-count">{{ getOptionCount(idx) }} 人</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="quiz-footer">
+            <div class="timer" v-if="gameStore.gamePhase === 'phase2_question'">
+              ⏱️ 剩餘時間：<span class="time-value">{{ timeLeft }}</span> s
+            </div>
+            <div class="answer-count">
+              👥 實時作答人數：{{ gameStore.phase2Stats?.answered || 0 }} / {{ gameStore.playerCount || 0 }}
+            </div>
+          </div>
+        </div>
+
+        <div v-else class="waiting-quiz">
+          <h2>準備進入下一題...</h2>
+        </div>
+      </div>
+    </div>
+
+    <!-- Phase 2 Complete Rankings (Individual) -->
+    <div v-else-if="gameStore.gamePhase === 'phase2_end'" class="result-overlay final phase2-final">
+      <div class="result-content">
+        <h1>🏆 問答遊戲 英雄榜</h1>
+
+        <div class="leaderboard-section">
+          <h2>個人總積分前 20 名</h2>
+          <div class="leaderboard-grid phase2-grid">
+            <div v-for="(player, index) in gameStore.teams?.slice(0, 20)" :key="index"
+              class="leaderboard-item phase2-item" :class="getRankClass(index)">
+              <span class="rank">{{ index + 1 }}</span>
+              <span class="player-id">{{ player.employeeId }}</span>
+              <span class="player-score">{{ player.score }} 分</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- Round 2 / Final Result -->
     <div v-else-if="gameStore.gamePhase === 'round2_result'" class="result-overlay final">
       <div class="result-content">
@@ -274,6 +344,49 @@ function getRankClass(index) {
   if (index === 1) return 'silver'
   if (index === 2) return 'bronze'
   return ''
+}
+
+// Phase 2 Quiz state
+const showQuizStats = ref(false)
+const timeLeft = ref(0)
+let timerInterval = null
+let statsTimeout = null
+
+const questionTypeName = computed(() => {
+  const t = gameStore.phase2Question?.customType || 'star'
+  if (t === 'coin') return '💰 金幣題 (前100名答對+1)'
+  if (t === 'shell') return '🐢 龜殼題 (答錯-1)'
+  return '⭐ 無敵星星題 (答對+1)'
+})
+
+watch(() => gameStore.phase2Question, (newQ) => {
+  if (newQ) {
+    showQuizStats.value = false
+    timeLeft.value = newQ.timeLimit || 15
+
+    clearInterval(timerInterval)
+    clearTimeout(statsTimeout)
+
+    // Countdown
+    timerInterval = setInterval(() => {
+      if (timeLeft.value > 0) timeLeft.value--
+    }, 1000)
+
+    // Show stats after 5 seconds
+    statsTimeout = setTimeout(() => {
+      showQuizStats.value = true
+    }, 5000)
+  }
+})
+
+function getOptionCount(idx) {
+  return gameStore.phase2Stats?.distribution?.[idx] || 0
+}
+
+function getOptionPercentage(idx) {
+  const count = getOptionCount(idx)
+  const total = gameStore.playerCount || 1
+  return total > 0 ? (count / total) * 100 : 0
 }
 
 onMounted(() => {
@@ -798,24 +911,220 @@ onMounted(() => {
   margin-bottom: var(--spacing-sm);
 }
 
-.podium-stand {
+/* Phase 2 Quiz */
+.quiz-overlay {
   width: 100%;
-  background: linear-gradient(135deg, #444, #222);
-  border-radius: var(--border-radius-md) var(--border-radius-md) 0 0;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--spacing-xl);
+}
+
+.quiz-content {
+  max-width: 1200px;
+  width: 100%;
+  text-align: center;
+}
+
+.phase-title {
+  font-size: 2.5rem;
+  margin-bottom: var(--spacing-md);
+  color: var(--text-secondary);
+}
+
+.q-type-badge {
+  display: inline-block;
+  padding: var(--spacing-xs) var(--spacing-lg);
+  background: rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: var(--border-radius-full);
+  font-size: 1.5rem;
+  font-weight: bold;
+  color: #FACC15;
+  margin-bottom: var(--spacing-lg);
+}
+
+/* Phase 2 Individual Leaderboard Adjustments */
+.phase2-final .result-content {
+  max-width: 1200px;
+}
+
+.phase2-grid {
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--spacing-sm);
+}
+
+.phase2-item {
+  padding: var(--spacing-sm) var(--spacing-md);
+  font-size: 1.25rem;
+}
+
+.phase2-item .rank {
+  font-size: 1.25rem;
+  width: 40px;
+  height: 40px;
+}
+
+.question-text {
+  font-size: 3rem;
+  font-weight: 900;
+  margin-bottom: var(--spacing-2xl);
+  line-height: 1.3;
+}
+
+.q-number {
+  color: var(--primary);
+  margin-right: var(--spacing-sm);
+}
+
+.options-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--spacing-xl);
+  margin-bottom: var(--spacing-2xl);
+}
+
+.option-card {
+  position: relative;
+  background: rgba(255, 255, 255, 0.05);
+  border: 2px solid rgba(255, 255, 255, 0.1);
+  border-radius: var(--border-radius-lg);
+  padding: var(--spacing-xl);
+  text-align: left;
+  overflow: hidden;
+  transition: all 0.3s ease;
+  min-height: 140px;
+}
+
+.option-card.correct {
+  background: rgba(0, 184, 148, 0.2);
+  border-color: var(--success);
+  box-shadow: 0 0 30px rgba(0, 184, 148, 0.3);
+}
+
+.option-card.wrong {
+  opacity: 0.5;
+}
+
+.option-content {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+  margin-bottom: var(--spacing-md);
+}
+
+.option-label {
+  font-size: 2rem;
+  font-weight: 900;
+  color: var(--primary);
+  background: rgba(255, 255, 255, 0.1);
+  width: 60px;
+  height: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--border-radius-sm);
+  flex-shrink: 0;
+}
+
+.option-text {
+  font-size: 2rem;
+  font-weight: 700;
+}
+
+.stat-bar-container {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 100%;
+  z-index: 1;
+  opacity: 0;
+  transition: opacity 0.5s ease;
+  pointer-events: none;
+}
+
+.stat-bar-container.show {
+  opacity: 1;
+}
+
+.stat-bar-bg {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 20px;
+  background: rgba(0, 0, 0, 0.3);
+}
+
+.stat-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--primary), var(--secondary));
+  transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.stat-count {
+  position: absolute;
+  right: var(--spacing-xl);
+  top: -60px;
+  font-size: 3rem;
+  font-weight: 900;
+  color: rgba(255, 255, 255, 0.9);
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+.quiz-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--spacing-lg);
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: var(--border-radius-lg);
+}
+
+.timer {
+  font-size: 2rem;
+  font-weight: 700;
+}
+
+.time-value {
+  color: var(--warning);
+  font-size: 2.5rem;
+}
+
+.answer-count {
+  font-size: 2rem;
+  font-weight: 700;
+}
+
+.waiting-quiz h2 {
+  font-size: 3rem;
+  color: var(--text-secondary);
+  animation: pulse 2s infinite ease-in-out;
+}
+</style>
+
+.podium-stand {
+width: 100%;
+background: linear-gradient(135deg, #444, #222);
+border-radius: var(--border-radius-md) var(--border-radius-md) 0 0;
 }
 
 .podium-place.first .podium-stand {
-  height: 120px;
-  background: linear-gradient(135deg, #FFD700, #FFA500);
+height: 120px;
+background: linear-gradient(135deg, #FFD700, #FFA500);
 }
 
 .podium-place.second .podium-stand {
-  height: 80px;
-  background: linear-gradient(135deg, #C0C0C0, #A0A0A0);
+height: 80px;
+background: linear-gradient(135deg, #C0C0C0, #A0A0A0);
 }
 
 .podium-place.third .podium-stand {
-  height: 50px;
-  background: linear-gradient(135deg, #CD7F32, #A0522D);
+height: 50px;
+background: linear-gradient(135deg, #CD7F32, #A0522D);
 }
 </style>

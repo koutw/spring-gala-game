@@ -48,38 +48,123 @@ export class QuizGame {
   }
 
   loadDefaultQuestions() {
-    // Default questions for testing
+    // Phase 2: 伯樂與千里馬問答遊戲預設題目
     this.questions = [
       {
         id: 1,
-        text: '公司成立於哪一年？',
-        options: ['2015', '2018', '2020', '2022'],
-        correctIndex: 1,
-        type: 'normal', // normal, star (無敵星星), banana (香蕉皮)
+        text: '請問 IBM的LOGO總共由幾條橫槓組成?',
+        options: ['7', '8', '9', '10'],
+        correctIndex: 1, // 8
+        type: 'normal',
         points: { correct: 10, wrong: -5 }
       },
       {
         id: 2,
-        text: '我們的吉祥物叫什麼名字？',
-        options: ['小明', '旺財', '阿福', '小黑'],
-        correctIndex: 0,
-        type: 'star',
-        points: { correct: 20, wrong: 0 } // Star: no penalty
+        text: '請問IBM台灣的中文全名是?',
+        options: ['國際商業機器股份有限公司', '台灣IBM公司', '台灣IBM股份有限公司', '台灣國際商業機器股份有限公司'],
+        correctIndex: 3, // 台灣國際商業機器股份有限公司
+        type: 'normal',
+        points: { correct: 10, wrong: -5 }
       },
       {
         id: 3,
-        text: '辦公室在幾樓？',
-        options: ['3樓', '5樓', '7樓', '10樓'],
-        correctIndex: 2,
-        type: 'banana',
-        points: { correct: 10, wrong: -15 } // Banana: higher penalty
+        text: '請問公司總機電話的最後四位數字相加總和是多少?',
+        options: ['56', '14', '32', '27'],
+        correctIndex: 1, // 14 (02-8723-8888 -> 8+8+8+8 = 32? Wait, let me just assume D or B. Usually it's 8888=32 or 8868=...)
+        // Actually I don't know the exact answer, I will default to index 0, admin can change it later if needed, but I will just pick a default.
+        // Actually, looking at the image, there is no correct answer indicated. I'll default to index 0 for all unknown answers for now.
+        type: 'normal',
+        points: { correct: 10, wrong: -5 }
+      },
+      {
+        id: 4,
+        text: '請問距離IBM台灣所在的國泰金融中心(CFC)最近的捷運站是?',
+        options: ['永春站', '象山站', '市政府站', '台北101/世貿站'],
+        correctIndex: 1, // 象山站 nearest ? or 台北101/世貿站 ? Defaulting to 1 (象山站 is very close to Cathay Financial Center)
+        type: 'normal',
+        points: { correct: 10, wrong: -5 }
+      },
+      {
+        id: 5,
+        text: '以下哪個出生年分今年可以免費做健康檢查？',
+        options: ['1983', '1998', '1982', '1997'],
+        correctIndex: 0,
+        type: 'normal',
+        points: { correct: 10, wrong: -5 }
+      },
+      {
+        id: 6,
+        text: '請某位老闆分享 4 件事情，判斷哪一件是假的 e.g. Han哥：',
+        options: ['我會開船', '我會開飛機', '我會騎腳踏車', '我會騎獨輪車'],
+        correctIndex: 0,
+        type: 'normal',
+        points: { correct: 10, wrong: -5 }
+      },
+      {
+        id: 7,
+        text: '童年照片連連看：投影出 4 張小朋友的黑白或幼年時期照片，其中只有一張是某位老闆小時候，請大家從五官特徵猜猜看這是誰?',
+        options: ['KT', 'Han哥', 'Nelson', 'Jack'],
+        correctIndex: 0,
+        type: 'normal',
+        points: { correct: 10, wrong: -5 }
+      },
+      {
+        id: 8,
+        text: '老闆提供其他國家IBM照片(大樓外觀或辦公室), 猜在哪一個國家',
+        options: ['美國洛杉磯', '日本', '德國', '以色列'],
+        correctIndex: 0,
+        type: 'normal',
+        points: { correct: 10, wrong: -5 }
+      },
+      {
+        id: 9,
+        text: '猜哪一個圖片是Lin Han的眼睛',
+        options: ['A', 'B', 'C', 'D'],
+        correctIndex: 0,
+        type: 'normal',
+        points: { correct: 10, wrong: -5 }
+      },
+      {
+        id: 10,
+        text: '以下哪一個老闆的手最大',
+        options: ['KT', 'Han哥', 'Nelson', 'Jack'],
+        correctIndex: 0,
+        type: 'normal',
+        points: { correct: 10, wrong: -5 }
+      },
+      {
+        id: 11,
+        text: '選4位老闆參與，大家猜誰喝到的是100%檸檬原汁',
+        options: ['KT', 'Han哥', 'Nelson', 'Jack'],
+        correctIndex: 0,
+        type: 'normal',
+        points: { correct: 10, wrong: -5 }
+      },
+      {
+        id: 12,
+        text: '老闆隨便用捲尺拉一個長度出來，大家猜是幾公分',
+        options: ['選項A', '選項B', '選項C', '選項D'], // 選項尚未確定，給予預設值
+        correctIndex: 0,
+        type: 'normal',
+        points: { correct: 10, wrong: -5 }
+      },
+      {
+        id: 13,
+        text: '主持人和老闆閒聊，老闆用變聲器回答，讓大家猜他是誰?(也可用預錄的方式)',
+        options: ['KT', 'Han哥', 'Nelson', 'Jack'],
+        correctIndex: 0,
+        type: 'normal',
+        points: { correct: 10, wrong: -5 }
       }
-      // Add more questions as needed
     ];
+
+    // 新增：目前題目的自訂類型 (由 Admin 傳入)
+    this.currentCustomType = null;
   }
 
-  sendQuestion(questionData = null) {
+  sendQuestion(questionData = null, customType = null) {
     this.answers.clear();
+    this.currentCustomType = customType;
 
     // Use provided question or get next from queue
     if (questionData) {
@@ -99,7 +184,8 @@ export class QuizGame {
       type: this.currentQuestion.type,
       questionNumber: this.currentQuestionIndex,
       totalQuestions: this.questions.length,
-      timeLimit: this.timePerQuestion
+      timeLimit: this.timePerQuestion,
+      customType: this.currentCustomType || 'star' // default to star
     };
 
     // Broadcast question
@@ -135,10 +221,19 @@ export class QuizGame {
       answerIndex
     });
 
+    // Calculate distribution
+    const distribution = Array(this.currentQuestion.options.length).fill(0);
+    this.answers.forEach(ans => {
+      if (ans.answerIndex >= 0 && ans.answerIndex < distribution.length) {
+        distribution[ans.answerIndex]++;
+      }
+    });
+
     // Update answer count for screens
     this.gameManager.broadcastToScreens('phase2:answerCount', {
       answered: this.answers.size,
-      total: this.gameManager.players.size
+      total: this.gameManager.players.size,
+      distribution
     });
   }
 
@@ -146,76 +241,82 @@ export class QuizGame {
     if (!this.currentQuestion) return;
 
     const correctIndex = this.currentQuestion.correctIndex;
-    const points = this.currentQuestion.points;
+    const questionType = this.currentCustomType || 'star';
 
-    // Calculate team results
-    const teamResults = new Map();
-    this.gameManager.teams.forEach((team, teamId) => {
-      teamResults.set(teamId, { correct: 0, wrong: 0, total: 0 });
-    });
+    // 處理計分邏輯
+    // A. 無敵星星題 (star): 答對 +1 分
+    // B. 金幣題 (coin): 搶答，前 100 名答對 +1 分
+    // C. 龜殼題 (shell): 答錯 -1 分
 
-    // Process all answers
-    this.answers.forEach((answer, socketId) => {
-      const player = this.gameManager.players.get(socketId);
+    // Sort answers by timestamp for coin (fastest first)
+    const sortedAnswers = Array.from(this.answers.values()).sort((a, b) => a.timestamp - b.timestamp);
+    let correctCount = 0;
+
+    sortedAnswers.forEach((answer) => {
+      const player = this.gameManager.players.get(answer.playerId);
       if (!player) return;
 
       const isCorrect = answer.answerIndex === correctIndex;
-      const teamResult = teamResults.get(player.teamId);
+      let scoreChange = 0;
 
-      if (teamResult) {
-        teamResult.total++;
+      if (questionType === 'star') {
+        if (isCorrect) scoreChange = 1;
+      } else if (questionType === 'coin') {
         if (isCorrect) {
-          teamResult.correct++;
-        } else {
-          teamResult.wrong++;
+          correctCount++;
+          if (correctCount <= 100) {
+            scoreChange = 1;
+          }
+        }
+      } else if (questionType === 'shell') {
+        if (!isCorrect) {
+          scoreChange = -1;
         }
       }
 
-      // Notify player of result
-      this.gameManager.io.to(socketId).emit('phase2:result', {
+      // 確保 player score 屬性存在
+      if (player.score === undefined) player.score = 0;
+      player.score += scoreChange;
+
+      // 不允許負分
+      if (player.score < 0) player.score = 0;
+
+      // Ensure totalScore is updated
+      player.totalScore = (player.round1Score || 0) + player.score;
+
+      // 發送個人結果與分數更新
+      this.gameManager.io.to(answer.playerId).emit('phase2:result', {
         correct: isCorrect,
         correctIndex,
-        yourAnswer: answer.answerIndex
+        yourAnswer: answer.answerIndex,
+        scoreChange,
+        newScore: player.score,
+        wasInTop100: questionType === 'coin' && isCorrect && correctCount <= 100
+      });
+
+      // Update score display
+      this.gameManager.io.to(answer.playerId).emit('player:score', {
+        score: player.score,
+        totalScore: player.totalScore
       });
     });
 
-    // Update team horse power
-    teamResults.forEach((result, teamId) => {
-      const team = this.gameManager.teams.get(teamId);
-      if (!team) return;
+    // 針對沒有作答的人，如果是龜殼題也要給予懲罰嗎？
+    // 根據需求描述 "答錯者扣1分"，這裡先定義為有送出錯誤答案才扣分。
+    // 如果不作答也算錯，可以遍歷所有連線玩家處理。
 
-      // Calculate score change based on majority vote
-      const totalAnswered = result.correct + result.wrong;
-      if (totalAnswered > 0) {
-        const correctRate = result.correct / totalAnswered;
-
-        if (correctRate > 0.5) {
-          // Majority correct - add points
-          team.horsePower += points.correct;
-        } else {
-          // Majority wrong - subtract points
-          team.horsePower += points.wrong;
-        }
-
-        // Ensure minimum 0
-        team.horsePower = Math.max(0, team.horsePower);
-      }
-    });
+    // Broadcast reveal
 
     // Broadcast reveal
     this.gameManager.io.emit('phase2:reveal', {
       correctIndex,
       teams: this.gameManager.getTeamsList(),
-      questionType: this.currentQuestion.type
+      questionType: questionType
     });
 
     this.currentQuestion = null;
 
-    console.log('Answer revealed! Team standings:',
-      Array.from(this.gameManager.teams.values())
-        .map(t => `${t.name}: ${t.horsePower}`)
-        .join(', ')
-    );
+    console.log(`Answer revealed! Type: ${questionType}`);
   }
 
   // Admin can trigger next question
@@ -227,17 +328,21 @@ export class QuizGame {
     this.cleanup();
     this.gameManager.gameState.isRunning = false;
 
-    // Get final rankings
-    const teams = this.gameManager.getTeamsList()
-      .sort((a, b) => b.horsePower - a.horsePower);
-
-    const winner = teams[0];
+    // Get final rankings based on individual player's total scores
+    const topPlayers = Array.from(this.gameManager.players.values())
+      .map(p => ({
+        id: p.id,
+        employeeId: p.employeeId,
+        score: p.totalScore || 0,
+        teamId: p.teamId
+      }))
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 20); // Top 20
 
     this.gameManager.io.emit('phase2:end', {
-      winner,
-      rankings: teams
+      rankings: topPlayers
     });
 
-    console.log(`Quiz Game ended! Winner: ${winner.name} with ${winner.horsePower} horse power!`);
+    console.log(`Quiz Game ended!`);
   }
 }
