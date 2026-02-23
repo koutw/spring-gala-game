@@ -11,7 +11,7 @@ import { useGameStore } from './stores/game'
 const gameStore = useGameStore()
 
 onMounted(() => {
-  // Connect to game server on app mount
+  // 預先建立 Socket 連線（各 View 也會呼叫 connect，但有防重複機制）
   gameStore.connect()
 })
 </script>

@@ -15,7 +15,7 @@ export class QuizGame {
 
   start() {
     this.currentQuestionIndex = 0;
-    this.timePerQuestion = this.gameManager.gameState.settings.phase2TimePerQuestion;
+    this.timePerQuestion = this.gameManager.settings.phase2TimePerQuestion || 15;
 
     // Reset team horse power
     this.gameManager.teams.forEach(team => {
@@ -279,11 +279,8 @@ export class QuizGame {
       }
 
       // 確保 player score 屬性存在
-      if (player.score === undefined) player.score = 0;
-      player.score += scoreChange;
-
-      // Ensure totalScore is updated
-      player.totalScore = (player.round1Score || 0) + player.score;
+      if (player.quizScore === undefined) player.quizScore = 0;
+      player.quizScore += scoreChange;
 
       // 發送個人結果與分數更新
       this.gameManager.io.to(answer.playerId).emit('phase2:result', {
@@ -291,14 +288,14 @@ export class QuizGame {
         correctIndex,
         yourAnswer: answer.answerIndex,
         scoreChange,
-        newScore: player.score,
+        newScore: player.quizScore,
         wasInTop100: questionType === 'coin' && isCorrect && correctCount <= 100
       });
 
-      // Update score display
+      // Update score display (Phase 2 只顯示問答分數)
       this.gameManager.io.to(answer.playerId).emit('player:score', {
-        score: player.score,
-        totalScore: player.totalScore
+        score: player.quizScore,
+        totalScore: player.quizScore
       });
     });
 
@@ -306,24 +303,23 @@ export class QuizGame {
     if (questionType === 'shell') {
       this.gameManager.players.forEach((player, socketId) => {
         if (!answeredPlayers.has(socketId) && player.teamId) { // Only process active players in a team
-          // 確保 player score 屬性存在
-          if (player.score === undefined) player.score = 0;
+          // 確保 player quizScore 屬性存在
+          if (player.quizScore === undefined) player.quizScore = 0;
 
-          player.score -= 1; // 龜殼題未作答扣 1 分
-          player.totalScore = (player.round1Score || 0) + player.score;
+          player.quizScore -= 1; // 龜殼題未作答扣 1 分
 
           this.gameManager.io.to(socketId).emit('phase2:result', {
             correct: false,
             correctIndex,
             yourAnswer: null, // 未作答
             scoreChange: -1,
-            newScore: player.score,
+            newScore: player.quizScore,
             wasInTop100: false
           });
 
           this.gameManager.io.to(socketId).emit('player:score', {
-            score: player.score,
-            totalScore: player.totalScore
+            score: player.quizScore,
+            totalScore: player.quizScore
           });
         }
       });
@@ -351,11 +347,12 @@ export class QuizGame {
     this.gameManager.gameState.isRunning = false;
 
     // Get final rankings based on individual player's total scores
-    const topPlayers = Array.from(this.gameManager.players.values())
+    // Phase 2 排行榜只計算問答分數
+    const topPlayers = Array.from(this.gameManager.playersByEmployeeId.values())
       .map(p => ({
         id: p.id,
         employeeId: p.employeeId,
-        score: p.totalScore || 0,
+        score: p.quizScore || 0,
         teamId: p.teamId
       }))
       .sort((a, b) => b.score - a.score)

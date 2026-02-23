@@ -1,0 +1,102 @@
+# 春酒遊戲 - 第二階段(問答遊戲) 負載測試配置
+# 使用方式：artillery run load-test-phase2.yml
+# 遊戲流程：模擬大量玩家連線，並在問答階段持續嘗試送出隨機答案。
+# 注意：為了配合主持人手動發送題目，腳本設計為「每隔 3 秒嘗試作答一次」，後端會確保在沒有題目時忽略這些作答，
+# 而當題目發佈時，玩家便能自動搶答/作答，以測試伺服器承受瞬間收到數百筆 `player:answer` 的負載能力。
+
+config:
+  target: "http://localhost:3000" # 本地測試請維持此設定，若要測試線上版請改為 "https://spring-gala-game.onrender.com"
+  phases:
+    # 階段 1: 暖機 - 30 秒內逐漸加入 100 人
+    - name: "Warm up"
+      duration: 30
+      arrivalRate: 3
+      maxVusers: 100
+    
+    # 階段 2: 爬升 - 60 秒內加到 300 人
+    - name: "Ramp up"
+      duration: 60
+      arrivalRate: 5
+      maxVusers: 300
+    
+    # 階段 3: 全速 - 60 秒內達到 600 人
+    - name: "Full load"
+      duration: 60
+      arrivalRate: 10
+      maxVusers: 600
+    
+    # 階段 4: 維持 - 維持 600 人 3 分鐘 (完整走完相近於一個問答環節)
+    - name: "Sustained load"
+      duration: 180
+      arrivalRate: 2
+      maxVusers: 600
+
+  engines:
+    socketio-v3:
+      transports: ["websocket"]
+
+  # 自訂變數
+  variables:
+    teams:
+      - "blue"
+      - "yellow"
+      - "red"
+    answers: # 對應題目選項索引 0, 1, 2, 3 (A, B, C, D)
+      - 0
+      - 1
+      - 2
+      - 3
+
+scenarios:
+  # 場景 1: 積極搶答者 (金幣題好手)
+  - name: "Active Answering Player"
+    weight: 80  # 80% 的使用者是積極作答的
+    engine: socketio-v3
+    flow:
+      # 連線加入遊戲
+      - emit:
+          channel: "player:join"
+          data:
+            employeeId: "Q_Active_{{ $randomNumber(1000, 9999) }}"
+            teamId: "{{ $randomString(teams) }}"
+      
+      # 給予連線緩衝時間
+      - think: 2
+      
+      # 為了配合主持人手動切換題目，玩家會每 3 秒嘗試點擊送出一次隨機答案。
+      # 在伺服器端，如果還沒開始題目，這筆操作會被視為無效忽略，
+      # 大螢幕一出題，這個 loop 就可以瞬間模擬出百人同時按答案的壯觀場面！
+      - loop:
+        - emit:
+            channel: "player:answer"
+            data:
+              answerIndex: "{{ $randomString(answers) }}"
+        - think: 3
+        count: 100 # 持續大約 5 分鐘
+      
+      # 等待遊戲結束
+      - think: 10
+
+  # 場景 2: 思考較久的作答者 (或是不作答的龜殼題犧牲者)
+  - name: "Slow/Idle Player"
+    weight: 20  # 20% 的人思考較久甚至會來不及作答
+    engine: socketio-v3
+    flow:
+      - emit:
+          channel: "player:join"
+          data:
+            employeeId: "Q_Slow_{{ $randomNumber(1000, 9999) }}"
+            teamId: "{{ $randomString(teams) }}"
+      
+      - think: 5
+      
+      # 每 10 秒才嘗試送出一次答案，模擬很多人會來不及在限制時間內作答
+      - loop:
+        - emit:
+            channel: "player:answer"
+            data:
+              answerIndex: "{{ $randomString(answers) }}"
+        - think: 10
+        count: 30
+      
+      - think: 10

@@ -1,213 +1,236 @@
 <template>
   <div class="admin-view">
-    <div class="admin-header">
-      <h1>🎮 遊戲管理控制台</h1>
-      <div class="connection-status" :class="{ online: gameStore.connected }">
-        {{ gameStore.connected ? '已連線' : '連線中...' }}
+    <!-- Admin Login Screen -->
+    <div v-if="!gameStore.adminAuthenticated" class="admin-login-overlay">
+      <div class="login-card">
+        <h1>🔐 管理員登入</h1>
+        <form @submit.prevent="handleLogin" class="login-form">
+          <div class="form-group">
+            <label>帳號</label>
+            <input v-model="loginId" class="input" placeholder="請輸入帳號" required />
+          </div>
+          <div class="form-group">
+            <label>密碼</label>
+            <input v-model="loginPassword" type="password" class="input" placeholder="請輸入密碼" required />
+          </div>
+          <p v-if="gameStore.adminAuthError" class="auth-error">{{ gameStore.adminAuthError }}</p>
+          <button type="submit" class="btn btn-primary btn-large w-full">登入</button>
+        </form>
       </div>
     </div>
 
-    <div class="admin-content">
-      <!-- Game Status Panel -->
-      <div class="panel status-panel">
-        <h2>📊 遊戲狀態</h2>
-        <div class="status-grid">
-          <div class="status-item">
-            <span class="status-label">當前階段</span>
-            <span class="status-value">{{ phaseLabel }}</span>
-          </div>
-          <div class="status-item">
-            <span class="status-label">當前 Round</span>
-            <span class="status-value">{{ gameStore.currentRound || '-' }}</span>
-          </div>
-          <div class="status-item">
-            <span class="status-label">遊戲狀態</span>
-            <span class="status-value" :class="{ running: gameStore.isRunning }">
-              {{ gameStore.isRunning ? '進行中' : '已停止' }}
-            </span>
-          </div>
-          <div class="status-item">
-            <span class="status-label">玩家人數</span>
-            <span class="status-value">{{ gameStore.playerCount }} 人</span>
-          </div>
+    <!-- Admin Dashboard (only shown after auth) -->
+    <template v-else>
+      <div class="admin-header">
+        <h1>🎮 遊戲管理控制台</h1>
+        <div class="connection-status" :class="{ online: gameStore.connected }">
+          {{ gameStore.connected ? '已連線' : '連線中...' }}
         </div>
       </div>
 
-      <!-- Settings Panel -->
-      <div class="panel settings-panel" :class="{ locked: gameStore.isRunning }">
-        <h2>
-          ⚙️ 遊戲設定
-          <span v-if="gameStore.isRunning" class="lock-badge">🔒 已鎖定</span>
-        </h2>
-
-        <div class="settings-grid">
-          <div class="setting-item">
-            <label>Round 1 總分</label>
-            <input v-model.number="settings.round1TargetScore" type="number" min="100" max="100000" step="100"
-              :disabled="gameStore.isRunning" />
-            <span class="setting-hint">Bonus: {{ Math.round(settings.round1TargetScore * 0.5) }}, {{
-              Math.round(settings.round1TargetScore * 0.75) }}</span>
-          </div>
-
-          <div class="setting-item">
-            <label>Round 2 總分</label>
-            <input v-model.number="settings.round2TargetScore" type="number" min="100" max="50000" step="100"
-              :disabled="gameStore.isRunning" />
-            <span class="setting-hint">Bonus: {{ Math.round(settings.round2TargetScore * 0.6) }}</span>
-          </div>
-
-          <div class="setting-item">
-            <label>排行榜顯示人數</label>
-            <input v-model.number="settings.leaderboardSize" type="number" min="5" max="50"
-              :disabled="gameStore.isRunning" />
+      <div class="admin-content">
+        <!-- Game Status Panel -->
+        <div class="panel status-panel">
+          <h2>📊 遊戲狀態</h2>
+          <div class="status-grid">
+            <div class="status-item">
+              <span class="status-label">當前階段</span>
+              <span class="status-value">{{ phaseLabel }}</span>
+            </div>
+            <div class="status-item">
+              <span class="status-label">當前 Round</span>
+              <span class="status-value">{{ gameStore.currentRound || '-' }}</span>
+            </div>
+            <div class="status-item">
+              <span class="status-label">遊戲狀態</span>
+              <span class="status-value" :class="{ running: gameStore.isRunning }">
+                {{ gameStore.isRunning ? '進行中' : '已停止' }}
+              </span>
+            </div>
+            <div class="status-item">
+              <span class="status-label">玩家人數</span>
+              <span class="status-value">{{ gameStore.playerCount }} 人</span>
+            </div>
           </div>
         </div>
 
-        <button class="btn btn-secondary" @click="saveSettings" :disabled="gameStore.isRunning">
-          {{ gameStore.isRunning ? '🔒 遊戲中不可調整' : '儲存設定 💾' }}
-        </button>
-      </div>
+        <!-- Settings Panel -->
+        <div class="panel settings-panel" :class="{ locked: gameStore.isRunning }">
+          <h2>
+            ⚙️ 遊戲設定
+            <span v-if="gameStore.isRunning" class="lock-badge">🔒 已鎖定</span>
+          </h2>
 
-      <!-- Game Controls -->
-      <div class="panel control-panel">
-        <h2>🎯 遊戲控制</h2>
-
-        <div class="control-section">
-          <h3>第一階段：數位賽馬</h3>
-
-          <div class="round-controls">
-            <button class="btn btn-primary btn-large" @click="startRound(1)"
-              :disabled="gameStore.isRunning || gameStore.gamePhase === 'round1'">
-              開始 Round 1（點擊）🏇
-            </button>
-
-            <button class="btn btn-warning btn-large" @click="startWarmup"
-              :disabled="gameStore.isRunning || gameStore.gamePhase !== 'round1_result'">
-              Round 2 暖身（授權感測器）📳
-            </button>
-
-            <button class="btn btn-primary btn-large" @click="startRound(2)"
-              :disabled="gameStore.isRunning || !['round1_result', 'round2_warmup'].includes(gameStore.gamePhase)">
-              開始 Round 2（搖晃）🔥
-            </button>
-          </div>
-        </div>
-
-        <div class="control-section">
-          <h3>第二階段：伯樂與千里馬</h3>
-
-          <div class="round-controls phase2-controls">
-            <button class="btn btn-primary btn-large" @click="startPhase2"
-              :disabled="gameStore.isRunning || !['round2_result', 'finished'].includes(gameStore.gamePhase) && gameStore.gamePhase !== 'phase2_end'">
-              開始 問答遊戲 🧠
-            </button>
-
-            <div class="question-type-selector">
-              <label>題目類型：</label>
-              <select v-model="selectedPhase2Type" class="input"
-                :disabled="!['phase2', 'phase2_reveal'].includes(gameStore.gamePhase)">
-                <option value="star">⭐ 無敵星星題 (答對+1)</option>
-                <option value="coin">💰 金幣題 (前100名答對+1)</option>
-                <option value="shell">🐢 龜殼題 (答錯-1)</option>
-              </select>
+          <div class="settings-grid">
+            <div class="setting-item">
+              <label>Round 1 總分</label>
+              <input v-model.number="settings.round1TargetScore" type="number" min="100" max="100000" step="100"
+                :disabled="gameStore.isRunning" />
+              <span class="setting-hint">Bonus: {{ Math.round(settings.round1TargetScore * 0.5) }}, {{
+                Math.round(settings.round1TargetScore * 0.75) }}</span>
             </div>
 
-            <button class="btn btn-secondary btn-large" @click="nextQuestion"
-              :disabled="!['phase2', 'phase2_reveal'].includes(gameStore.gamePhase)">
-              發送下道題目 📝
-            </button>
-          </div>
-        </div>
+            <div class="setting-item">
+              <label>Round 2 總分</label>
+              <input v-model.number="settings.round2TargetScore" type="number" min="100" max="50000" step="100"
+                :disabled="gameStore.isRunning" />
+              <span class="setting-hint">Bonus: {{ Math.round(settings.round2TargetScore * 0.6) }}</span>
+            </div>
 
-        <div class="control-section">
-          <h3>排行榜</h3>
-          <div class="leaderboard-controls">
-            <button class="btn btn-secondary" @click="showLeaderboard('round1')">
-              Round 1 排行榜
-            </button>
-            <button class="btn btn-secondary" @click="showLeaderboard('total')">
-              總積分排行榜
-            </button>
+            <div class="setting-item">
+              <label>排行榜顯示人數</label>
+              <input v-model.number="settings.leaderboardSize" type="number" min="5" max="50"
+                :disabled="gameStore.isRunning" />
+            </div>
           </div>
-        </div>
 
-        <div class="control-section">
-          <h3>遊戲控制</h3>
-          <div class="round-controls">
-            <button class="btn btn-danger" @click="endRound(1)"
-              :disabled="!gameStore.isRunning || gameStore.gamePhase !== 'round1'">
-              結束 Round 1 🏁
-            </button>
-            <button class="btn btn-danger" @click="endRound(2)"
-              :disabled="!gameStore.isRunning || gameStore.gamePhase !== 'round2'">
-              結束 Round 2 🏁
-            </button>
-            <button class="btn btn-danger" @click="endRound('quiz')"
-              :disabled="!['phase2', 'phase2_question', 'phase2_reveal'].includes(gameStore.gamePhase)">
-              結束 問答遊戲 🏁
-            </button>
-            <button class="btn btn-danger btn-large" @click="stopGame" :disabled="!gameStore.isRunning">
-              停止遊戲 ⛔
-            </button>
-          </div>
-        </div>
-
-        <div class="control-section reset-section">
-          <h3>遊戲場次</h3>
-          <div class="game-id-display">
-            <span class="game-id-label">當前 ID:</span>
-            <code class="game-id-value">{{ gameStore.gameId || '-' }}</code>
-          </div>
-          <button class="btn btn-warning btn-large" @click="resetGame" :disabled="gameStore.isRunning">
-            🔄 重置遊戲（開始新場次）
+          <button class="btn btn-secondary" @click="saveSettings" :disabled="gameStore.isRunning">
+            {{ gameStore.isRunning ? '🔒 遊戲中不可調整' : '儲存設定 💾' }}
           </button>
-          <p class="reset-warning">⚠️ 此操作將清除所有玩家資料和分數</p>
         </div>
-      </div>
 
-      <!-- Teams Overview -->
-      <div class="panel teams-panel">
-        <h2>👥 隊伍狀態</h2>
-        <div class="teams-list">
-          <div v-for="team in gameStore.teams" :key="team.id" class="team-item" :style="{ '--team-color': team.color }">
-            <div class="team-header">
-              <span class="team-dot"></span>
+        <!-- Game Controls -->
+        <div class="panel control-panel">
+          <h2>🎯 遊戲控制</h2>
+
+          <div class="control-section">
+            <h3>第一階段：數位賽馬</h3>
+
+            <div class="round-controls">
+              <button class="btn btn-primary btn-large" @click="startRound(1)"
+                :disabled="gameStore.isRunning || gameStore.gamePhase === 'round1'">
+                開始 Round 1（點擊）🏇
+              </button>
+
+              <button class="btn btn-warning btn-large" @click="startWarmup"
+                :disabled="gameStore.isRunning || gameStore.gamePhase !== 'round1_result'">
+                Round 2 暖身（授權感測器）📳
+              </button>
+
+              <button class="btn btn-primary btn-large" @click="startRound(2)"
+                :disabled="gameStore.isRunning || !['round1_result', 'round2_warmup'].includes(gameStore.gamePhase)">
+                開始 Round 2（搖晃）🔥
+              </button>
+            </div>
+          </div>
+
+          <div class="control-section">
+            <h3>第二階段：伯樂與千里馬</h3>
+
+            <div class="round-controls phase2-controls">
+              <button class="btn btn-primary btn-large" @click="startPhase2"
+                :disabled="gameStore.isRunning || !['round2_result', 'finished'].includes(gameStore.gamePhase) && gameStore.gamePhase !== 'phase2_end'">
+                開始 問答遊戲 🧠
+              </button>
+
+              <div class="question-type-selector">
+                <label>題目類型：</label>
+                <select v-model="selectedPhase2Type" class="input"
+                  :disabled="!['phase2', 'phase2_reveal'].includes(gameStore.gamePhase)">
+                  <option value="star">⭐ 無敵星星題 (答對+1)</option>
+                  <option value="coin">💰 金幣題 (前100名答對+1)</option>
+                  <option value="shell">🐢 龜殼題 (答錯-1)</option>
+                </select>
+              </div>
+
+              <button class="btn btn-secondary btn-large" @click="nextQuestion"
+                :disabled="!['phase2', 'phase2_reveal'].includes(gameStore.gamePhase)">
+                發送下道題目 📝
+              </button>
+            </div>
+          </div>
+
+          <div class="control-section">
+            <h3>排行榜</h3>
+            <div class="leaderboard-controls">
+              <button class="btn btn-secondary" @click="showLeaderboard('round1')">
+                Round 1 排行榜
+              </button>
+              <button class="btn btn-secondary" @click="showLeaderboard('total')">
+                總積分排行榜
+              </button>
+            </div>
+          </div>
+
+          <div class="control-section">
+            <h3>遊戲控制</h3>
+            <div class="round-controls">
+              <button class="btn btn-danger" @click="endRound(1)"
+                :disabled="!gameStore.isRunning || gameStore.gamePhase !== 'round1'">
+                結束 Round 1 🏁
+              </button>
+              <button class="btn btn-danger" @click="endRound(2)"
+                :disabled="!gameStore.isRunning || gameStore.gamePhase !== 'round2'">
+                結束 Round 2 🏁
+              </button>
+              <button class="btn btn-danger" @click="endRound('quiz')"
+                :disabled="!['phase2', 'phase2_question', 'phase2_reveal'].includes(gameStore.gamePhase)">
+                結束 問答遊戲 🏁
+              </button>
+              <button class="btn btn-danger btn-large" @click="stopGame" :disabled="!gameStore.isRunning">
+                停止遊戲 ⛔
+              </button>
+            </div>
+          </div>
+
+          <div class="control-section reset-section">
+            <h3>遊戲場次</h3>
+            <div class="game-id-display">
+              <span class="game-id-label">當前 ID:</span>
+              <code class="game-id-value">{{ gameStore.gameId || '-' }}</code>
+            </div>
+            <button class="btn btn-warning btn-large" @click="resetGame" :disabled="gameStore.isRunning">
+              🔄 重置遊戲（開始新場次）
+            </button>
+            <p class="reset-warning">⚠️ 此操作將清除所有玩家資料和分數</p>
+          </div>
+        </div>
+
+        <!-- Teams Overview -->
+        <div class="panel teams-panel">
+          <h2>👥 隊伍狀態</h2>
+          <div class="teams-list">
+            <div v-for="team in gameStore.teams" :key="team.id" class="team-item"
+              :style="{ '--team-color': team.color }">
+              <div class="team-header">
+                <span class="team-dot"></span>
+                <span class="team-name">{{ team.name }}</span>
+              </div>
+              <div class="team-stats">
+                <div class="stat">
+                  <span class="stat-label">人數</span>
+                  <span class="stat-value">{{ team.playerCount || 0 }}</span>
+                </div>
+                <div class="stat">
+                  <span class="stat-label">R1 分數</span>
+                  <span class="stat-value">{{ team.round1Score || 0 }}</span>
+                </div>
+                <div class="stat">
+                  <span class="stat-label">R2 分數</span>
+                  <span class="stat-value">{{ team.round2Score || 0 }}</span>
+                </div>
+                <div class="stat total">
+                  <span class="stat-label">總分</span>
+                  <span class="stat-value">{{ team.totalScore || 0 }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- QR Code Info -->
+        <div class="panel qr-panel">
+          <h2>📱 QR Code 連結</h2>
+          <div class="qr-links">
+            <div class="qr-item" v-for="team in teamsInfo" :key="team.id">
+              <span class="team-dot" :style="{ background: team.color }"></span>
               <span class="team-name">{{ team.name }}</span>
-            </div>
-            <div class="team-stats">
-              <div class="stat">
-                <span class="stat-label">人數</span>
-                <span class="stat-value">{{ team.playerCount || 0 }}</span>
-              </div>
-              <div class="stat">
-                <span class="stat-label">R1 分數</span>
-                <span class="stat-value">{{ team.round1Score || 0 }}</span>
-              </div>
-              <div class="stat">
-                <span class="stat-label">R2 分數</span>
-                <span class="stat-value">{{ team.round2Score || 0 }}</span>
-              </div>
-              <div class="stat total">
-                <span class="stat-label">總分</span>
-                <span class="stat-value">{{ team.totalScore || 0 }}</span>
-              </div>
+              <code class="qr-url">{{ baseUrl }}/player?team={{ team.id }}</code>
             </div>
           </div>
         </div>
       </div>
-
-      <!-- QR Code Info -->
-      <div class="panel qr-panel">
-        <h2>📱 QR Code 連結</h2>
-        <div class="qr-links">
-          <div class="qr-item" v-for="team in teamsInfo" :key="team.id">
-            <span class="team-dot" :style="{ background: team.color }"></span>
-            <span class="team-name">{{ team.name }}</span>
-            <code class="qr-url">{{ baseUrl }}/player?team={{ team.id }}</code>
-          </div>
-        </div>
-      </div>
-    </div>
+    </template>
   </div>
 </template>
 
@@ -216,6 +239,10 @@ import { ref, computed, onMounted, reactive, watch } from 'vue'
 import { useGameStore } from '../stores/game'
 
 const gameStore = useGameStore()
+
+// Login
+const loginId = ref('')
+const loginPassword = ref('')
 
 // Settings
 const settings = reactive({
@@ -274,8 +301,12 @@ function startWarmup() {
   gameStore.startWarmup()
 }
 
+function handleLogin() {
+  gameStore.adminLogin(loginId.value, loginPassword.value)
+}
+
 function stopGame() {
-  gameStore.socket?.emit('game:stop')
+  gameStore.socket?.emit('admin:stopGame')
 }
 
 function endRound(round) {
@@ -306,12 +337,23 @@ function resetGame() {
 
 onMounted(() => {
   gameStore.connect()
-  gameStore.joinAsAdmin()
 
-  // Load settings from server if available
-  if (gameStore.settings) {
-    Object.assign(settings, gameStore.settings)
+  // 等待 socket 連線後再執行 admin 操作
+  const waitForConnection = () => {
+    if (gameStore.socket?.connected) {
+      // 如果已認證，重新取得狀態
+      if (gameStore.adminAuthenticated) {
+        gameStore.joinAsAdmin()
+      }
+    } else {
+      gameStore.socket?.once('connect', () => {
+        if (gameStore.adminAuthenticated) {
+          gameStore.joinAsAdmin()
+        }
+      })
+    }
   }
+  waitForConnection()
 })
 </script>
 
@@ -610,5 +652,52 @@ onMounted(() => {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* Admin Login */
+.admin-login-overlay {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--spacing-lg);
+}
+
+.login-card {
+  width: 100%;
+  max-width: 400px;
+  padding: var(--spacing-xl);
+  background: var(--bg-card);
+  border-radius: var(--border-radius-lg);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  text-align: center;
+}
+
+.login-card h1 {
+  font-size: 1.75rem;
+  margin-bottom: var(--spacing-xl);
+}
+
+.login-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+}
+
+.login-form .form-group {
+  text-align: left;
+}
+
+.login-form .form-group label {
+  display: block;
+  margin-bottom: var(--spacing-xs);
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.auth-error {
+  color: var(--danger);
+  font-size: 0.875rem;
+  margin: 0;
 }
 </style>

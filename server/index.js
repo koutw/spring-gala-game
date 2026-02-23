@@ -57,23 +57,10 @@ app.get('/api/game/status', (req, res) => {
   res.json(gameManager.getGameStatus());
 });
 
-// Admin endpoints
-app.post('/api/admin/game/start', (req, res) => {
-  const { phase, settings } = req.body;
-  gameManager.startGame(phase, settings);
-  res.json({ success: true });
-});
-
-app.post('/api/admin/game/stop', (req, res) => {
-  gameManager.stopGame();
-  res.json({ success: true });
-});
-
-app.post('/api/admin/question', (req, res) => {
-  const { question } = req.body;
-  gameManager.sendQuestion(question);
-  res.json({ success: true });
-});
+// Helper: check if socket is authenticated admin
+function isAdmin(socketId) {
+  return gameManager.admins.has(socketId);
+}
 
 // Socket.IO connection handling
 io.on('connection', (socket) => {
@@ -99,43 +86,61 @@ io.on('connection', (socket) => {
     gameManager.addScreen(socket);
   });
 
-  // Admin joins
+  // Admin login (authenticate with credentials)
+  socket.on('admin:login', (data) => {
+    gameManager.authenticateAdmin(socket, data);
+  });
+
+  // Admin joins (re-sync state for already authenticated admin)
   socket.on('admin:join', () => {
     gameManager.addAdmin(socket);
   });
 
   // Admin starts a round
   socket.on('admin:startRound', (data) => {
+    if (!isAdmin(socket.id)) return;
     gameManager.startGame(data.round);
   });
 
   // Admin starts Round 2 warmup
   socket.on('admin:startWarmup', () => {
+    if (!isAdmin(socket.id)) return;
     gameManager.startWarmup();
   });
 
   // Admin proceeds to next question
   socket.on('admin:nextQuestion', (data) => {
+    if (!isAdmin(socket.id)) return;
     gameManager.sendQuestion(null, data?.questionType);
   });
 
   // Admin ends current round immediately
   socket.on('admin:endRound', (data) => {
+    if (!isAdmin(socket.id)) return;
     gameManager.endRound(data.round);
+  });
+
+  // Admin stops game
+  socket.on('admin:stopGame', () => {
+    if (!isAdmin(socket.id)) return;
+    gameManager.stopGame();
   });
 
   // Admin updates settings
   socket.on('admin:updateSettings', (data) => {
+    if (!isAdmin(socket.id)) return;
     gameManager.updateSettings(data);
   });
 
   // Admin shows leaderboard
   socket.on('admin:showLeaderboard', (data) => {
+    if (!isAdmin(socket.id)) return;
     gameManager.showLeaderboard(data?.type || 'total');
   });
 
   // Admin resets game (start new session)
   socket.on('admin:resetGame', () => {
+    if (!isAdmin(socket.id)) return;
     const newGameId = gameManager.resetGame();
     socket.emit('admin:gameReset', { gameId: newGameId });
   });

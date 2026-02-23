@@ -52,12 +52,18 @@ export class GameManager {
     this.screens = new Set();
     this.admins = new Set();
 
+    // Admin 認證密碼
+    this.adminCredentials = { id: 'ibm', password: '11917900' };
+
     // 遊戲實例
     this.horseRacing = new HorseRacing(this);
     this.quizGame = new QuizGame(this);
 
     // 初始化隊伍
     this.initializeTeams();
+
+    // 定期儲存 interval ID
+    this.periodicSaveInterval = null;
 
     // 連接 Redis 並嘗試恢復狀態
     this.initRedis();
@@ -116,6 +122,15 @@ export class GameManager {
         });
         console.log(`Restored ${savedPlayers.size} players`);
       }
+
+      // 恢復 session tokens
+      const savedTokens = await this.redis.loadSessionTokens();
+      if (savedTokens.size > 0) {
+        savedTokens.forEach((employeeId, token) => {
+          this.sessionTokens.set(token, employeeId);
+        });
+        console.log(`Restored ${savedTokens.size} session tokens`);
+      }
     } catch (error) {
       console.error('Failed to restore from Redis:', error.message);
     }
@@ -123,7 +138,10 @@ export class GameManager {
 
   // 定期儲存到 Redis（每 5 秒）
   startPeriodicSave() {
-    setInterval(async () => {
+    if (this.periodicSaveInterval) {
+      clearInterval(this.periodicSaveInterval);
+    }
+    this.periodicSaveInterval = setInterval(async () => {
       await this.saveToRedis();
     }, 5000);
   }
@@ -140,6 +158,9 @@ export class GameManager {
     for (const [employeeId, player] of this.playersByEmployeeId) {
       await this.redis.savePlayer(employeeId, player);
     }
+
+    // 儲存 session tokens
+    await this.redis.saveSessionTokens(this.sessionTokens);
   }
 
   // 產生遊戲場次識別碼 (格式: GAME-YYYYMMDD-XXXX)
@@ -162,6 +183,13 @@ export class GameManager {
 
   // 重置遊戲（開始新的一場）
   async resetGame() {
+    // 停止定時器
+    if (this.periodicSaveInterval) {
+      clearInterval(this.periodicSaveInterval);
+      this.periodicSaveInterval = null;
+    }
+    this.horseRacing.stop();
+
     // 產生新的遊戲 ID
     const newGameId = this.generateGameId();
 
@@ -184,6 +212,9 @@ export class GameManager {
 
     // 清除 Redis 資料
     await this.redis.clearAll();
+
+    // 重新啟動定期儲存
+    this.startPeriodicSave();
 
     // 廣播遊戲重置
     this.io.emit('game:reset', { gameId: newGameId });
@@ -262,7 +293,7 @@ export class GameManager {
 
     const player = {
       id: socket.id,
-      oderId: uuidv4().slice(0, 8),
+      oderId: uuidv4().slice(0, 8),  // legacy field, kept for compatibility
       employeeId: normalizedEmployeeId,
       sessionToken: newSessionToken,
       teamId: validTeamId,
@@ -418,18 +449,40 @@ export class GameManager {
     return { teams };
   }
 
-  // 管理員連線
-  addAdmin(socket) {
-    this.admins.add(socket.id);
-    socket.join('admins');
+  // 管理員登入驗證
+  authenticateAdmin(socket, credentials) {
+    const { id, password } = credentials || {};
+    if (id === this.adminCredentials.id && password === this.adminCredentials.password) {
+      this.admins.add(socket.id);
+      socket.join('admins');
+      socket.emit('admin:authResult', { success: true });
+      socket.emit('admin:init', {
+        gameState: this.getGameStatus(),
+        teams: this.getTeamsList(),
+        settings: this.settings,
+        gameId: this.gameState.gameId
+      });
+      console.log(`Admin authenticated: ${socket.id}`);
+      return true;
+    } else {
+      socket.emit('admin:authResult', { success: false, message: '帳號或密碼錯誤' });
+      console.log(`Admin auth failed: ${socket.id}`);
+      return false;
+    }
+  }
 
+  // 管理員連線（僅供已驗證的管理員重新加入）
+  addAdmin(socket) {
+    if (!this.admins.has(socket.id)) {
+      socket.emit('admin:authResult', { success: false, message: '請先登入' });
+      return;
+    }
     socket.emit('admin:init', {
       gameState: this.getGameStatus(),
       teams: this.getTeamsList(),
-      settings: this.settings
+      settings: this.settings,
+      gameId: this.gameState.gameId
     });
-
-    console.log(`Admin connected: ${socket.id}`);
   }
 
   // 斷線處理 - 保留玩家資料以供重連
@@ -542,6 +595,7 @@ export class GameManager {
 
   // 停止遊戲
   stopGame() {
+    if (!this.gameState.isRunning) return;
     this.gameState.isRunning = false;
     this.horseRacing.stop();
     this.quizGame.stop();
@@ -588,22 +642,23 @@ export class GameManager {
     });
   }
 
-  // 取得排行榜
+  // 取得排行榜（包含離線玩家）
   getLeaderboard(type = 'total') {
     const entries = [];
 
-    this.players.forEach((player, socketId) => {
+    this.playersByEmployeeId.forEach((player, employeeId) => {
       let score = 0;
       if (type === 'round1') {
-        score = player.round1Score;
+        score = player.round1Score || 0;
       } else if (type === 'round2') {
-        score = player.round2Score;
+        score = player.round2Score || 0;
       } else {
-        score = player.totalScore;
+        // Phase 1 總分 = round1 + round2
+        score = (player.round1Score || 0) + (player.round2Score || 0);
       }
 
       entries.push({
-        id: socketId,
+        id: player.id || employeeId,
         employeeId: player.employeeId,
         teamId: player.teamId,
         score
@@ -617,6 +672,7 @@ export class GameManager {
   // 取得遊戲狀態
   getGameStatus() {
     return {
+      gameId: this.gameState.gameId,
       phase: this.gameState.phase,
       isRunning: this.gameState.isRunning,
       currentRound: this.gameState.currentRound,

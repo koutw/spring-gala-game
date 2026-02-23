@@ -22,6 +22,7 @@ export const useGameStore = defineStore('game', () => {
   const score = ref(0)
   const totalScore = ref(0)
   const leaderboard = ref([])
+  const phase2Rankings = ref([])  // Phase 2 個人排行榜
 
   // Phase 2 (Quiz) state
   const phase2Question = ref(null)
@@ -37,11 +38,22 @@ export const useGameStore = defineStore('game', () => {
   const teams = ref([])
   const playerCount = ref(0)
 
+  // Admin auth
+  const adminAuthenticated = ref(false)
+  const adminAuthError = ref('')
+
   // Session storage key
   const SESSION_KEY = 'spring-gala-session'
 
   // Connect to server
   function connect() {
+    // 防止重複連線
+    if (socket.value && socket.value.connected) return
+    if (socket.value) {
+      // Socket 存在但未連線，不重新建立
+      return
+    }
+
     const serverUrl = import.meta.env.PROD
       ? window.location.origin
       : 'http://localhost:3000'
@@ -74,7 +86,9 @@ export const useGameStore = defineStore('game', () => {
       team.value = data.team
       score.value = data.player.round1Score || 0
       totalScore.value = data.player.totalScore || 0
-      gameId.value = data.gameState.gameId
+      if (data.gameState?.gameId) {
+        gameId.value = data.gameState.gameId
+      }
       updateGameState(data.gameState)
 
       // 儲存 sessionToken 到 localStorage（安全機制）
@@ -145,7 +159,21 @@ export const useGameStore = defineStore('game', () => {
       if (data.gameState) {
         updateGameState(data.gameState)
       }
+      if (data.gameId) {
+        gameId.value = data.gameId
+      }
       console.log('Admin initialized with settings:', data.settings)
+    })
+
+    // Admin auth result
+    socket.value.on('admin:authResult', (data) => {
+      if (data.success) {
+        adminAuthenticated.value = true
+        adminAuthError.value = ''
+      } else {
+        adminAuthenticated.value = false
+        adminAuthError.value = data.message || '登入失敗'
+      }
     })
 
     // Game events
@@ -236,7 +264,7 @@ export const useGameStore = defineStore('game', () => {
     socket.value.on('phase2:end', (data) => {
       gamePhase.value = 'phase2_end'
       isRunning.value = false
-      teams.value = data.rankings
+      phase2Rankings.value = data.rankings || []
     })
 
     // Player score update
@@ -295,13 +323,18 @@ export const useGameStore = defineStore('game', () => {
     currentRound.value = state.currentRound || 0
     playerCount.value = state.playerCount
     settings.value = state.settings
+    if (state.gameId) {
+      gameId.value = state.gameId
+    }
   }
 
   // Player actions
-  function joinGame(employeeId, teamId, sessionGameId = null) {
+  function joinGame(employeeId, teamId) {
+    const session = getSession()
     socket.value?.emit('player:join', {
       employeeId,
-      teamId
+      teamId,
+      sessionToken: session?.sessionToken || null
     })
   }
 
@@ -392,6 +425,11 @@ export const useGameStore = defineStore('game', () => {
     }
   }
 
+  // Admin login
+  function adminLogin(id, password) {
+    socket.value?.emit('admin:login', { id, password })
+  }
+
   return {
     // State
     socket,
@@ -402,9 +440,11 @@ export const useGameStore = defineStore('game', () => {
     isRunning,
     currentRound,
     settings,
+    gameId,
     score,
     totalScore,
     leaderboard,
+    phase2Rankings,
     phase2Question,
     phase2Stats,
     phase2Result,
@@ -413,6 +453,8 @@ export const useGameStore = defineStore('game', () => {
     motionType,
     teams,
     playerCount,
+    adminAuthenticated,
+    adminAuthError,
 
     // Actions
     connect,
@@ -426,6 +468,7 @@ export const useGameStore = defineStore('game', () => {
     startPhase2,
     startWarmup,
     updateSettings,
-    clearSession
+    clearSession,
+    adminLogin
   }
 })

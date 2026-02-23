@@ -218,9 +218,9 @@ this.gameState  // Object                    — 當前遊戲狀態
 
 **分數上限**：當隊伍總分達到目標分數，停止累積（`handleAction` 中檢查）
 
-### 6.4 `QuizGame.js` — 問答遊戲（Phase 2，待實裝）
+### 6.4 `QuizGame.js` — 問答遊戲（Phase 2）
 
-問答積分賽的框架，包含出題、答題、計分邏輯。目前有基礎實作但尚未與前端整合。
+問答積分賽，包含出題（無敵星星、金幣、龜殼三種題型）、答題、計分邏輯。前端已整合玩家端答題介面及大螢幕題目展示。
 
 ### 6.5 `RedisStore.js` — 持久化層
 
@@ -269,7 +269,7 @@ this.gameState  // Object                    — 當前遊戲狀態
 | `leaderboard:show` | 全體 | `{ leaderboard, teams }` | 排行榜資料 |
 | `screen:init` | 大螢幕 | `{ settings, teams, gameState }` | 大螢幕初始化 |
 | `settings:update` | 大螢幕/管理員 | `{ ...settings }` | 設定同步 |
-| `playerCount` | 全體 | `{ count, teams: [...] }` | 人數更新 |
+| `players:count` | 全體 | `{ count, teams: [...] }` | 人數更新 |
 
 ### Socket Rooms
 

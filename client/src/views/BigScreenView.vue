@@ -198,7 +198,7 @@
         <div class="leaderboard-section">
           <h2>個人總積分前 20 名</h2>
           <div class="leaderboard-grid phase2-grid">
-            <div v-for="(player, index) in gameStore.teams?.slice(0, 20)" :key="index"
+            <div v-for="(player, index) in gameStore.phase2Rankings?.slice(0, 20)" :key="index"
               class="leaderboard-item phase2-item" :class="getRankClass(index)">
               <span class="rank">{{ index + 1 }}</span>
               <span class="player-id">{{ player.employeeId }}</span>
@@ -253,7 +253,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useGameStore } from '../stores/game'
 import QRCodeVue3 from 'qrcode.vue'
 
@@ -392,6 +392,11 @@ function getOptionPercentage(idx) {
 onMounted(() => {
   gameStore.connect()
   gameStore.joinAsScreen()
+})
+
+onUnmounted(() => {
+  if (timerInterval) clearInterval(timerInterval)
+  if (statsTimeout) clearTimeout(statsTimeout)
 })
 </script>
 

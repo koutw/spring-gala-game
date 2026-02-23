@@ -151,6 +151,39 @@ export class RedisStore {
     }
   }
 
+  // 儲存 session tokens
+  async saveSessionTokens(sessionTokens) {
+    if (!this.isConnected) return;
+    try {
+      const tokensObj = {};
+      sessionTokens.forEach((employeeId, token) => {
+        tokensObj[token] = employeeId;
+      });
+      if (Object.keys(tokensObj).length > 0) {
+        await this.client.del(`${this.prefix}sessionTokens`);
+        await this.client.hSet(`${this.prefix}sessionTokens`, tokensObj);
+      }
+    } catch (error) {
+      console.error('Failed to save session tokens:', error.message);
+    }
+  }
+
+  // 載入 session tokens
+  async loadSessionTokens() {
+    if (!this.isConnected) return new Map();
+    try {
+      const data = await this.client.hGetAll(`${this.prefix}sessionTokens`);
+      const tokens = new Map();
+      for (const [token, employeeId] of Object.entries(data)) {
+        tokens.set(token, employeeId);
+      }
+      return tokens;
+    } catch (error) {
+      console.error('Failed to load session tokens:', error.message);
+      return new Map();
+    }
+  }
+
   // 清除所有遊戲資料（重置時使用）
   async clearAll() {
     if (!this.isConnected) return;
