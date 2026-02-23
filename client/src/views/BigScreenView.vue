@@ -1106,25 +1106,3 @@ onMounted(() => {
   animation: pulse 2s infinite ease-in-out;
 }
 </style>
-
-.podium-stand {
-width: 100%;
-background: linear-gradient(135deg, #444, #222);
-border-radius: var(--border-radius-md) var(--border-radius-md) 0 0;
-}
-
-.podium-place.first .podium-stand {
-height: 120px;
-background: linear-gradient(135deg, #FFD700, #FFA500);
-}
-
-.podium-place.second .podium-stand {
-height: 80px;
-background: linear-gradient(135deg, #C0C0C0, #A0A0A0);
-}
-
-.podium-place.third .podium-stand {
-height: 50px;
-background: linear-gradient(135deg, #CD7F32, #A0522D);
-}
-</style>
