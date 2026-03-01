@@ -886,15 +886,12 @@ onMounted(() => {
   flex-direction: column;
   gap: var(--spacing-sm);
   margin-bottom: var(--spacing-md);
-  max-height: 600px;
-  overflow-y: auto;
 }
 
 .question-card {
   background: rgba(255, 255, 255, 0.03);
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: var(--border-radius-md);
-  overflow: hidden;
   transition: border-color 0.2s;
 }
 
