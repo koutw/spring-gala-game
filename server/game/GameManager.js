@@ -462,7 +462,8 @@ export class GameManager {
         gameState: this.getGameStatus(),
         teams: this.getTeamsList(),
         settings: this.settings,
-        gameId: this.gameState.gameId
+        gameId: this.gameState.gameId,
+        questions: this.quizGame.getQuestions()
       });
       console.log(`Admin authenticated: ${socket.id}`);
       return true;
@@ -483,8 +484,24 @@ export class GameManager {
       gameState: this.getGameStatus(),
       teams: this.getTeamsList(),
       settings: this.settings,
-      gameId: this.gameState.gameId
+      gameId: this.gameState.gameId,
+      questions: this.quizGame.getQuestions()
     });
+  }
+
+  // 更新問答題目（遊戲進行中不可調整）
+  updateQuestions(questions) {
+    if (this.gameState.isRunning) {
+      return { success: false, message: '遊戲進行中，無法調整題目' };
+    }
+    const result = this.quizGame.setQuestions(questions);
+    if (result.success) {
+      // 廣播更新後的題目回給所有管理員
+      this.io.to('admins').emit('admin:questionsUpdated', {
+        questions: this.quizGame.getQuestions()
+      });
+    }
+    return result;
   }
 
   // 斷線處理 - 保留玩家資料以供重連

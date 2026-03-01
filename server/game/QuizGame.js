@@ -11,6 +11,9 @@ export class QuizGame {
     this.answers = new Map(); // socketId -> answer
     this.questions = [];
     this.timePerQuestion = 15; // seconds
+
+    // Load defaults so admin can see/edit them before game starts
+    this.loadDefaultQuestions();
   }
 
   start() {
@@ -54,107 +57,92 @@ export class QuizGame {
         id: 1,
         text: '請問 IBM的LOGO總共由幾條橫槓組成?',
         options: ['7', '8', '9', '10'],
-        correctIndex: 1, // 8
-        type: 'normal',
-        points: { correct: 10, wrong: -5 }
+        correctIndex: 1,
+        customType: 'star'
       },
       {
         id: 2,
         text: '請問IBM台灣的中文全名是?',
         options: ['國際商業機器股份有限公司', '台灣IBM公司', '台灣IBM股份有限公司', '台灣國際商業機器股份有限公司'],
-        correctIndex: 3, // 台灣國際商業機器股份有限公司
-        type: 'normal',
-        points: { correct: 10, wrong: -5 }
+        correctIndex: 3,
+        customType: 'star'
       },
       {
         id: 3,
         text: '請問公司總機電話的最後四位數字相加總和是多少?',
         options: ['56', '14', '32', '27'],
-        correctIndex: 1, // 14 (02-8723-8888 -> 8+8+8+8 = 32? Wait, let me just assume D or B. Usually it's 8888=32 or 8868=...)
-        // Actually I don't know the exact answer, I will default to index 0, admin can change it later if needed, but I will just pick a default.
-        // Actually, looking at the image, there is no correct answer indicated. I'll default to index 0 for all unknown answers for now.
-        type: 'normal',
-        points: { correct: 10, wrong: -5 }
+        correctIndex: 1,
+        customType: 'star'
       },
       {
         id: 4,
         text: '請問距離IBM台灣所在的國泰金融中心(CFC)最近的捷運站是?',
         options: ['永春站', '象山站', '市政府站', '台北101/世貿站'],
-        correctIndex: 1, // 象山站 nearest ? or 台北101/世貿站 ? Defaulting to 1 (象山站 is very close to Cathay Financial Center)
-        type: 'normal',
-        points: { correct: 10, wrong: -5 }
+        correctIndex: 1,
+        customType: 'star'
       },
       {
         id: 5,
         text: '以下哪個出生年分今年可以免費做健康檢查？',
         options: ['1983', '1998', '1982', '1997'],
         correctIndex: 0,
-        type: 'normal',
-        points: { correct: 10, wrong: -5 }
+        customType: 'star'
       },
       {
         id: 6,
         text: '請某位老闆分享 4 件事情，判斷哪一件是假的 e.g. Han哥：',
         options: ['我會開船', '我會開飛機', '我會騎腳踏車', '我會騎獨輪車'],
         correctIndex: 0,
-        type: 'normal',
-        points: { correct: 10, wrong: -5 }
+        customType: 'star'
       },
       {
         id: 7,
         text: '童年照片連連看：投影出 4 張小朋友的黑白或幼年時期照片，其中只有一張是某位老闆小時候，請大家從五官特徵猜猜看這是誰?',
         options: ['KT', 'Han哥', 'Nelson', 'Jack'],
         correctIndex: 0,
-        type: 'normal',
-        points: { correct: 10, wrong: -5 }
+        customType: 'star'
       },
       {
         id: 8,
         text: '老闆提供其他國家IBM照片(大樓外觀或辦公室), 猜在哪一個國家',
         options: ['美國洛杉磯', '日本', '德國', '以色列'],
         correctIndex: 0,
-        type: 'normal',
-        points: { correct: 10, wrong: -5 }
+        customType: 'coin'
       },
       {
         id: 9,
         text: '猜哪一個圖片是Lin Han的眼睛',
         options: ['A', 'B', 'C', 'D'],
         correctIndex: 0,
-        type: 'normal',
-        points: { correct: 10, wrong: -5 }
+        customType: 'coin'
       },
       {
         id: 10,
         text: '以下哪一個老闆的手最大',
         options: ['KT', 'Han哥', 'Nelson', 'Jack'],
         correctIndex: 0,
-        type: 'normal',
-        points: { correct: 10, wrong: -5 }
+        customType: 'shell'
       },
       {
         id: 11,
         text: '選4位老闆參與，大家猜誰喝到的是100%檸檬原汁',
         options: ['KT', 'Han哥', 'Nelson', 'Jack'],
         correctIndex: 0,
-        type: 'normal',
-        points: { correct: 10, wrong: -5 }
+        customType: 'shell'
       },
       {
         id: 12,
         text: '老闆隨便用捲尺拉一個長度出來，大家猜是幾公分',
-        options: ['選項A', '選項B', '選項C', '選項D'], // 選項尚未確定，給予預設值
+        options: ['選項A', '選項B', '選項C', '選項D'],
         correctIndex: 0,
-        type: 'normal',
-        points: { correct: 10, wrong: -5 }
+        customType: 'star'
       },
       {
         id: 13,
         text: '主持人和老闆閒聊，老闆用變聲器回答，讓大家猜他是誰?(也可用預錄的方式)',
         options: ['KT', 'Han哥', 'Nelson', 'Jack'],
         correctIndex: 0,
-        type: 'normal',
-        points: { correct: 10, wrong: -5 }
+        customType: 'star'
       }
     ];
 
@@ -162,9 +150,37 @@ export class QuizGame {
     this.currentCustomType = null;
   }
 
+  // 取得目前題目列表（供 Admin 同步）
+  getQuestions() {
+    return this.questions.map(q => ({
+      id: q.id,
+      text: q.text,
+      options: [...q.options],
+      correctIndex: q.correctIndex,
+      customType: q.customType || 'star'
+    }));
+  }
+
+  // Admin 編輯後更新題目列表
+  setQuestions(questions) {
+    if (!Array.isArray(questions) || questions.length === 0) {
+      return { success: false, message: '題目列表不可為空' };
+    }
+
+    this.questions = questions.map((q, idx) => ({
+      id: q.id || idx + 1,
+      text: q.text || `題目 ${idx + 1}`,
+      options: Array.isArray(q.options) ? q.options.slice(0, 6) : ['A', 'B', 'C', 'D'],
+      correctIndex: typeof q.correctIndex === 'number' ? q.correctIndex : 0,
+      customType: ['star', 'coin', 'shell'].includes(q.customType) ? q.customType : 'star'
+    }));
+
+    console.log(`Questions updated: ${this.questions.length} questions`);
+    return { success: true };
+  }
+
   sendQuestion(questionData = null, customType = null) {
     this.answers.clear();
-    this.currentCustomType = customType;
 
     // Use provided question or get next from queue
     if (questionData) {
@@ -177,6 +193,9 @@ export class QuizGame {
       return;
     }
 
+    // Use explicit override > question's own customType > 'star'
+    this.currentCustomType = customType || this.currentQuestion.customType || 'star';
+
     const questionForClients = {
       id: this.currentQuestion.id,
       text: this.currentQuestion.text,
@@ -185,7 +204,7 @@ export class QuizGame {
       questionNumber: this.currentQuestionIndex,
       totalQuestions: this.questions.length,
       timeLimit: this.timePerQuestion,
-      customType: this.currentCustomType || 'star' // default to star
+      customType: this.currentCustomType
     };
 
     // Broadcast question

@@ -28,6 +28,7 @@ export const useGameStore = defineStore('game', () => {
   const phase2Question = ref(null)
   const phase2Stats = ref({ answered: 0, total: 0, distribution: [] })
   const phase2Result = ref(null)
+  const phase2Questions = ref([])  // Admin 題目編輯列表
 
   // Round state
   const bonusStage = ref(0)
@@ -163,7 +164,17 @@ export const useGameStore = defineStore('game', () => {
       if (data.gameId) {
         gameId.value = data.gameId
       }
+      if (data.questions) {
+        phase2Questions.value = data.questions
+      }
       console.log('Admin initialized with settings:', data.settings)
+    })
+
+    // Admin questions synced from server
+    socket.value.on('admin:questionsUpdated', (data) => {
+      if (data.questions) {
+        phase2Questions.value = data.questions
+      }
     })
 
     // Admin auth result
@@ -385,6 +396,10 @@ export const useGameStore = defineStore('game', () => {
     socket.value?.emit('admin:updateSettings', newSettings)
   }
 
+  function updateQuestions(questions) {
+    socket.value?.emit('admin:updateQuestions', { questions })
+  }
+
   // Session 管理函數 - 只存 sessionToken（安全機制）
   function saveSession(sessionToken) {
     try {
@@ -457,6 +472,7 @@ export const useGameStore = defineStore('game', () => {
     phase2Question,
     phase2Stats,
     phase2Result,
+    phase2Questions,
     bonusStage,
     buttonPosition,
     motionType,
@@ -478,6 +494,7 @@ export const useGameStore = defineStore('game', () => {
     startPhase2,
     startWarmup,
     updateSettings,
+    updateQuestions,
     clearSession,
     adminLogin
   }

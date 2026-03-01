@@ -101,6 +101,83 @@
           </button>
         </div>
 
+        <!-- Phase 2 Question Editor Panel -->
+        <div class="panel questions-panel" :class="{ locked: gameStore.isRunning }">
+          <h2>
+            📝 第二階段題目
+            <span v-if="gameStore.isRunning" class="lock-badge">🔒 已鎖定</span>
+            <span class="question-count">{{ editableQuestions.length }} 題</span>
+          </h2>
+
+          <div class="questions-list">
+            <div v-for="(q, idx) in editableQuestions" :key="q.id" class="question-card"
+              :class="{ expanded: expandedQuestions.has(idx) }">
+              <!-- Collapsed Header -->
+              <div class="question-header" @click="toggleQuestion(idx)">
+                <span class="question-number">#{{ idx + 1 }}</span>
+                <span class="question-type-badge" :class="q.customType">{{
+                  typeLabels[q.customType] || '⭐' }}</span>
+                <span class="question-text-preview">{{ q.text }}</span>
+                <span class="expand-icon">{{ expandedQuestions.has(idx) ? '▲' : '▼' }}</span>
+              </div>
+
+              <!-- Expanded Body -->
+              <div v-if="expandedQuestions.has(idx)" class="question-body">
+                <div class="q-field">
+                  <label>題目文字</label>
+                  <input v-model="q.text" class="input" :disabled="gameStore.isRunning" />
+                </div>
+
+                <div class="q-field">
+                  <label>題目類型</label>
+                  <select v-model="q.customType" class="input" :disabled="gameStore.isRunning">
+                    <option value="star">⭐ 無敵星星題 (答對+1)</option>
+                    <option value="coin">💰 金幣題 (前100名答對+1)</option>
+                    <option value="shell">🐢 龜殼題 (答錯-1)</option>
+                  </select>
+                </div>
+
+                <div class="q-field">
+                  <label>選項</label>
+                  <div v-for="(opt, optIdx) in q.options" :key="optIdx" class="option-row">
+                    <input type="radio" :name="'correct-' + q.id" :value="optIdx"
+                      v-model="q.correctIndex" :disabled="gameStore.isRunning" />
+                    <input v-model="q.options[optIdx]" class="input option-input"
+                      :disabled="gameStore.isRunning"
+                      :placeholder="'選項 ' + (optIdx + 1)" />
+                    <button v-if="q.options.length > 2" class="btn-icon btn-remove-option"
+                      @click="removeOption(idx, optIdx)" :disabled="gameStore.isRunning"
+                      title="刪除選項">✕</button>
+                  </div>
+                  <button v-if="q.options.length < 6" class="btn btn-sm btn-ghost"
+                    @click="addOption(idx)" :disabled="gameStore.isRunning">
+                    + 新增選項
+                  </button>
+                </div>
+
+                <div class="q-field correct-hint">
+                  ✅ 正確答案：選項 {{ q.correctIndex + 1 }}
+                  ({{ q.options[q.correctIndex] || '-' }})
+                </div>
+
+                <button class="btn btn-sm btn-danger" @click="removeQuestion(idx)"
+                  :disabled="gameStore.isRunning">
+                  🗑️ 刪除此題
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div class="questions-actions">
+            <button class="btn btn-ghost" @click="addQuestion" :disabled="gameStore.isRunning">
+              ➕ 新增題目
+            </button>
+            <button class="btn btn-primary" @click="saveQuestions" :disabled="gameStore.isRunning">
+              {{ gameStore.isRunning ? '🔒 遊戲中不可調整' : '儲存題目 💾' }}
+            </button>
+          </div>
+        </div>
+
         <!-- Game Controls -->
         <div class="panel control-panel">
           <h2>🎯 遊戲控制</h2>
@@ -134,16 +211,6 @@
                 :disabled="gameStore.isRunning || !['round2_result', 'finished'].includes(gameStore.gamePhase) && gameStore.gamePhase !== 'phase2_end'">
                 開始 問答遊戲 🧠
               </button>
-
-              <div class="question-type-selector">
-                <label>題目類型：</label>
-                <select v-model="selectedPhase2Type" class="input"
-                  :disabled="!['phase2', 'phase2_reveal'].includes(gameStore.gamePhase)">
-                  <option value="star">⭐ 無敵星星題 (答對+1)</option>
-                  <option value="coin">💰 金幣題 (前100名答對+1)</option>
-                  <option value="shell">🐢 龜殼題 (答錯-1)</option>
-                </select>
-              </div>
 
               <button class="btn btn-secondary btn-large" @click="nextQuestion"
                 :disabled="!['phase2', 'phase2_reveal'].includes(gameStore.gamePhase)">
@@ -338,7 +405,78 @@ function startPhase2() {
 const selectedPhase2Type = ref('star')
 
 function nextQuestion() {
-  gameStore.socket?.emit('admin:nextQuestion', { questionType: selectedPhase2Type.value })
+  gameStore.socket?.emit('admin:nextQuestion', {})
+}
+
+// Question editor
+const expandedQuestions = ref(new Set())
+const editableQuestions = ref([])
+
+const typeLabels = {
+  star: '⭐ 星星',
+  coin: '💰 金幣',
+  shell: '🐢 龜殼'
+}
+
+// Sync from store to local editable copy
+watch(() => gameStore.phase2Questions, (newQuestions) => {
+  if (newQuestions && newQuestions.length > 0) {
+    editableQuestions.value = JSON.parse(JSON.stringify(newQuestions))
+  }
+}, { immediate: true, deep: true })
+
+function toggleQuestion(idx) {
+  const s = new Set(expandedQuestions.value)
+  if (s.has(idx)) {
+    s.delete(idx)
+  } else {
+    s.add(idx)
+  }
+  expandedQuestions.value = s
+}
+
+function addOption(qIdx) {
+  const q = editableQuestions.value[qIdx]
+  if (q.options.length < 6) {
+    q.options.push(`選項${q.options.length + 1}`)
+  }
+}
+
+function removeOption(qIdx, optIdx) {
+  const q = editableQuestions.value[qIdx]
+  if (q.options.length <= 2) return
+  q.options.splice(optIdx, 1)
+  // Adjust correctIndex if needed
+  if (q.correctIndex >= q.options.length) {
+    q.correctIndex = q.options.length - 1
+  }
+}
+
+function addQuestion() {
+  const maxId = editableQuestions.value.reduce((max, q) => Math.max(max, q.id || 0), 0)
+  editableQuestions.value.push({
+    id: maxId + 1,
+    text: '新題目',
+    options: ['A', 'B', 'C', 'D'],
+    correctIndex: 0,
+    customType: 'star'
+  })
+}
+
+function removeQuestion(idx) {
+  if (editableQuestions.value.length <= 1) {
+    alert('至少需要一道題目')
+    return
+  }
+  if (confirm(`確定要刪除題目 #${idx + 1} 嗎？`)) {
+    editableQuestions.value.splice(idx, 1)
+    expandedQuestions.value = new Set()
+  }
+}
+
+function saveQuestions() {
+  gameStore.updateQuestions(editableQuestions.value)
+  alert('題目已儲存！')
 }
 
 function showLeaderboard(type) {
@@ -715,5 +853,205 @@ onMounted(() => {
   color: var(--danger);
   font-size: 0.875rem;
   margin: 0;
+}
+
+/* Questions Panel */
+.questions-panel {
+  grid-column: 1 / -1;
+}
+
+.questions-panel h2 {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+.question-count {
+  font-size: 0.75rem;
+  padding: var(--spacing-xs) var(--spacing-sm);
+  background: rgba(108, 92, 231, 0.2);
+  border-radius: var(--border-radius-full);
+  color: var(--primary);
+  margin-left: auto;
+}
+
+.questions-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+  margin-bottom: var(--spacing-md);
+  max-height: 600px;
+  overflow-y: auto;
+}
+
+.question-card {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--border-radius-md);
+  overflow: hidden;
+  transition: border-color 0.2s;
+}
+
+.question-card.expanded {
+  border-color: rgba(108, 92, 231, 0.4);
+}
+
+.question-header {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-sm) var(--spacing-md);
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.15s;
+}
+
+.question-header:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.question-number {
+  font-weight: 700;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  min-width: 2rem;
+}
+
+.question-type-badge {
+  font-size: 0.7rem;
+  padding: 2px 8px;
+  border-radius: var(--border-radius-full);
+  white-space: nowrap;
+}
+
+.question-type-badge.star {
+  background: rgba(234, 179, 8, 0.2);
+  color: #EAB308;
+}
+
+.question-type-badge.coin {
+  background: rgba(0, 184, 148, 0.2);
+  color: #00B894;
+}
+
+.question-type-badge.shell {
+  background: rgba(225, 112, 85, 0.2);
+  color: #E17055;
+}
+
+.question-text-preview {
+  flex: 1;
+  font-size: 0.85rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.expand-icon {
+  font-size: 0.7rem;
+  color: var(--text-secondary);
+  margin-left: auto;
+}
+
+.question-body {
+  padding: var(--spacing-md) var(--spacing-lg);
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+}
+
+.q-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+}
+
+.q-field label {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+.q-field .input {
+  padding: var(--spacing-sm);
+  background: var(--bg-card-hover);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: var(--border-radius-sm);
+  color: var(--text-primary);
+  font-size: 0.9rem;
+}
+
+.q-field select.input {
+  cursor: pointer;
+}
+
+.option-row {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  margin-bottom: var(--spacing-xs);
+}
+
+.option-row input[type="radio"] {
+  accent-color: var(--primary);
+  cursor: pointer;
+  width: 16px;
+  height: 16px;
+}
+
+.option-input {
+  flex: 1;
+}
+
+.btn-icon {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 0.9rem;
+  padding: 4px 8px;
+  border-radius: var(--border-radius-sm);
+  transition: all 0.15s;
+}
+
+.btn-icon:hover {
+  color: var(--danger);
+  background: rgba(225, 112, 85, 0.15);
+}
+
+.btn-icon:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.btn-sm {
+  padding: var(--spacing-xs) var(--spacing-sm);
+  font-size: 0.8rem;
+}
+
+.btn-ghost {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px dashed rgba(255, 255, 255, 0.15);
+  color: var(--text-secondary);
+}
+
+.btn-ghost:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--text-primary);
+}
+
+.correct-hint {
+  font-size: 0.85rem;
+  color: var(--success);
+  padding: var(--spacing-xs) var(--spacing-sm);
+  background: rgba(0, 184, 148, 0.1);
+  border-radius: var(--border-radius-sm);
+}
+
+.questions-actions {
+  display: flex;
+  gap: var(--spacing-md);
+  justify-content: flex-end;
 }
 </style>

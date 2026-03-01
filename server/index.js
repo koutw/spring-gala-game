@@ -132,6 +132,15 @@ io.on('connection', (socket) => {
     gameManager.updateSettings(data);
   });
 
+  // Admin updates quiz questions
+  socket.on('admin:updateQuestions', (data) => {
+    if (!isAdmin(socket.id)) return;
+    const result = gameManager.updateQuestions(data.questions);
+    if (!result.success) {
+      socket.emit('admin:error', { message: result.message });
+    }
+  });
+
   // Admin shows leaderboard
   socket.on('admin:showLeaderboard', (data) => {
     if (!isAdmin(socket.id)) return;
