@@ -20,6 +20,6 @@ onMounted(() => {
 #app-container {
   width: 100%;
   height: 100vh;
-  overflow: hidden;
+  overflow: auto;
 }
 </style>
