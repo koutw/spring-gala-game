@@ -101,83 +101,6 @@
           </button>
         </div>
 
-        <!-- Phase 2 Question Editor Panel -->
-        <div class="panel questions-panel" :class="{ locked: gameStore.isRunning }">
-          <h2>
-            📝 第二階段題目
-            <span v-if="gameStore.isRunning" class="lock-badge">🔒 已鎖定</span>
-            <span class="question-count">{{ editableQuestions.length }} 題</span>
-          </h2>
-
-          <div class="questions-list">
-            <div v-for="(q, idx) in editableQuestions" :key="q.id" class="question-card"
-              :class="{ expanded: expandedQuestions.has(idx) }">
-              <!-- Collapsed Header -->
-              <div class="question-header" @click="toggleQuestion(idx)">
-                <span class="question-number">#{{ idx + 1 }}</span>
-                <span class="question-type-badge" :class="q.customType">{{
-                  typeLabels[q.customType] || '⭐' }}</span>
-                <span class="question-text-preview">{{ q.text }}</span>
-                <span class="expand-icon">{{ expandedQuestions.has(idx) ? '▲' : '▼' }}</span>
-              </div>
-
-              <!-- Expanded Body -->
-              <div v-if="expandedQuestions.has(idx)" class="question-body">
-                <div class="q-field">
-                  <label>題目文字</label>
-                  <input v-model="q.text" class="input" :disabled="gameStore.isRunning" />
-                </div>
-
-                <div class="q-field">
-                  <label>題目類型</label>
-                  <select v-model="q.customType" class="input" :disabled="gameStore.isRunning">
-                    <option value="star">⭐ 無敵星星題 (答對+1)</option>
-                    <option value="coin">💰 金幣題 (前100名答對+1)</option>
-                    <option value="shell">🐢 龜殼題 (答錯-1)</option>
-                  </select>
-                </div>
-
-                <div class="q-field">
-                  <label>選項</label>
-                  <div v-for="(opt, optIdx) in q.options" :key="optIdx" class="option-row">
-                    <input type="radio" :name="'correct-' + q.id" :value="optIdx"
-                      v-model="q.correctIndex" :disabled="gameStore.isRunning" />
-                    <input v-model="q.options[optIdx]" class="input option-input"
-                      :disabled="gameStore.isRunning"
-                      :placeholder="'選項 ' + (optIdx + 1)" />
-                    <button v-if="q.options.length > 2" class="btn-icon btn-remove-option"
-                      @click="removeOption(idx, optIdx)" :disabled="gameStore.isRunning"
-                      title="刪除選項">✕</button>
-                  </div>
-                  <button v-if="q.options.length < 6" class="btn btn-sm btn-ghost"
-                    @click="addOption(idx)" :disabled="gameStore.isRunning">
-                    + 新增選項
-                  </button>
-                </div>
-
-                <div class="q-field correct-hint">
-                  ✅ 正確答案：選項 {{ q.correctIndex + 1 }}
-                  ({{ q.options[q.correctIndex] || '-' }})
-                </div>
-
-                <button class="btn btn-sm btn-danger" @click="removeQuestion(idx)"
-                  :disabled="gameStore.isRunning">
-                  🗑️ 刪除此題
-                </button>
-              </div>
-            </div>
-          </div>
-
-          <div class="questions-actions">
-            <button class="btn btn-ghost" @click="addQuestion" :disabled="gameStore.isRunning">
-              ➕ 新增題目
-            </button>
-            <button class="btn btn-primary" @click="saveQuestions" :disabled="gameStore.isRunning">
-              {{ gameStore.isRunning ? '🔒 遊戲中不可調整' : '儲存題目 💾' }}
-            </button>
-          </div>
-        </div>
-
         <!-- Game Controls -->
         <div class="panel control-panel">
           <h2>🎯 遊戲控制</h2>
@@ -306,6 +229,85 @@
               <span class="team-name">{{ team.name }}</span>
               <code class="qr-url">{{ baseUrl }}/player?team={{ team.id }}</code>
             </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Phase 2 Question Editor (scroll down to see) -->
+      <div class="admin-questions-section">
+        <div class="panel questions-panel" :class="{ locked: gameStore.isRunning }">
+          <h2>
+            📝 第二階段題目
+            <span v-if="gameStore.isRunning" class="lock-badge">🔒 已鎖定</span>
+            <span class="question-count">{{ editableQuestions.length }} 題</span>
+          </h2>
+
+          <div class="questions-list">
+            <div v-for="(q, idx) in editableQuestions" :key="q.id" class="question-card"
+              :class="{ expanded: expandedQuestions.has(idx) }">
+              <!-- Collapsed Header -->
+              <div class="question-header" @click="toggleQuestion(idx)">
+                <span class="question-number">#{{ idx + 1 }}</span>
+                <span class="question-type-badge" :class="q.customType">{{
+                  typeLabels[q.customType] || '⭐' }}</span>
+                <span class="question-text-preview">{{ q.text }}</span>
+                <span class="expand-icon">{{ expandedQuestions.has(idx) ? '▲' : '▼' }}</span>
+              </div>
+
+              <!-- Expanded Body -->
+              <div v-if="expandedQuestions.has(idx)" class="question-body">
+                <div class="q-field">
+                  <label>題目文字</label>
+                  <input v-model="q.text" class="input" :disabled="gameStore.isRunning" />
+                </div>
+
+                <div class="q-field">
+                  <label>題目類型</label>
+                  <select v-model="q.customType" class="input" :disabled="gameStore.isRunning">
+                    <option value="star">⭐ 無敵星星題 (答對+1)</option>
+                    <option value="coin">💰 金幣題 (前100名答對+1)</option>
+                    <option value="shell">🐢 龜殼題 (答錯-1)</option>
+                  </select>
+                </div>
+
+                <div class="q-field">
+                  <label>選項</label>
+                  <div v-for="(opt, optIdx) in q.options" :key="optIdx" class="option-row">
+                    <input type="radio" :name="'correct-' + q.id" :value="optIdx"
+                      v-model="q.correctIndex" :disabled="gameStore.isRunning" />
+                    <input v-model="q.options[optIdx]" class="input option-input"
+                      :disabled="gameStore.isRunning"
+                      :placeholder="'選項 ' + (optIdx + 1)" />
+                    <button v-if="q.options.length > 2" class="btn-icon btn-remove-option"
+                      @click="removeOption(idx, optIdx)" :disabled="gameStore.isRunning"
+                      title="刪除選項">✕</button>
+                  </div>
+                  <button v-if="q.options.length < 6" class="btn btn-sm btn-ghost"
+                    @click="addOption(idx)" :disabled="gameStore.isRunning">
+                    + 新增選項
+                  </button>
+                </div>
+
+                <div class="q-field correct-hint">
+                  ✅ 正確答案：選項 {{ q.correctIndex + 1 }}
+                  ({{ q.options[q.correctIndex] || '-' }})
+                </div>
+
+                <button class="btn btn-sm btn-danger" @click="removeQuestion(idx)"
+                  :disabled="gameStore.isRunning">
+                  🗑️ 刪除此題
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div class="questions-actions">
+            <button class="btn btn-ghost" @click="addQuestion" :disabled="gameStore.isRunning">
+              ➕ 新增題目
+            </button>
+            <button class="btn btn-primary" @click="saveQuestions" :disabled="gameStore.isRunning">
+              {{ gameStore.isRunning ? '🔒 遊戲中不可調整' : '儲存題目 💾' }}
+            </button>
           </div>
         </div>
       </div>
@@ -855,9 +857,13 @@ onMounted(() => {
   margin: 0;
 }
 
-/* Questions Panel */
+/* Questions Section — separate from main grid */
+.admin-questions-section {
+  margin-top: var(--spacing-lg);
+}
+
 .questions-panel {
-  grid-column: 1 / -1;
+  /* no grid-column needed, it's standalone now */
 }
 
 .questions-panel h2 {
