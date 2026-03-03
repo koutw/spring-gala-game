@@ -206,7 +206,7 @@
               'selected': myAnswer === idx,
               'correct': gameStore.gamePhase === 'phase2_reveal' && gameStore.phase2Result?.correctIndex === idx,
               'wrong': gameStore.gamePhase === 'phase2_reveal' && myAnswer === idx && !gameStore.phase2Result?.correct
-            }" @click="submitAnswer(idx)" :disabled="myAnswer !== null || gameStore.gamePhase !== 'phase2_question'">
+            }" @click="submitAnswer(idx)" :disabled="gameStore.gamePhase !== 'phase2_question'">
               <span class="opt-label">{{ ['A', 'B', 'C', 'D'][idx] }}</span>
               <span class="opt-text">{{ opt }}</span>
             </button>
