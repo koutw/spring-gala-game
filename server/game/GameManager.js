@@ -191,6 +191,10 @@ export class GameManager {
       this.periodicSaveInterval = null;
     }
     this.horseRacing.stop();
+    this.quizGame.stop();
+    this.quizGame.loadDefaultQuestions();
+    this.quizGame.currentQuestionIndex = 0;
+    this.quizGame.answers.clear();
 
     // 產生新的遊戲 ID
     const newGameId = this.generateGameId();
@@ -542,6 +546,7 @@ export class GameManager {
   // 處理玩家問答 (Phase 2)
   handlePlayerAnswer(socketId, data) {
     if (!this.gameState.isRunning) return;
+    if (this.gameState.phase !== 'phase2') return;
     this.quizGame.handleAnswer(socketId, data);
   }
 

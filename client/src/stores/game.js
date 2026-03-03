@@ -86,7 +86,13 @@ export const useGameStore = defineStore('game', () => {
     socket.value.on('player:joined', (data) => {
       player.value = data.player
       team.value = data.team
-      score.value = data.player.round1Score || 0
+      // Use quizScore if in Phase 2, otherwise round1Score
+      const currentPhase = data.gameState?.phase || 'waiting'
+      if (currentPhase.startsWith('phase2')) {
+        score.value = data.player.quizScore || 0
+      } else {
+        score.value = data.player.round1Score || 0
+      }
       totalScore.value = data.player.totalScore || 0
       if (data.gameState?.gameId) {
         gameId.value = data.gameState.gameId
@@ -99,7 +105,7 @@ export const useGameStore = defineStore('game', () => {
       }
 
       if (data.isReconnect) {
-        console.log('Session restored! Score:', data.player.round1Score, data.player.round2Score)
+        console.log('Session restored! Score:', data.player.round1Score, data.player.round2Score, 'Quiz:', data.player.quizScore)
       }
     })
 
@@ -248,6 +254,10 @@ export const useGameStore = defineStore('game', () => {
     socket.value.on('phase2:start', (data) => {
       gamePhase.value = 'phase2'
       isRunning.value = true
+      score.value = 0
+      phase2Result.value = null
+      phase2Question.value = null
+      phase2Stats.value = { answered: 0, total: 0, distribution: [] }
     })
 
     socket.value.on('phase2:question', (data) => {
@@ -274,6 +284,8 @@ export const useGameStore = defineStore('game', () => {
       if (!phase2Result.value) phase2Result.value = {}
       phase2Result.value.correct = data.correct
       phase2Result.value.yourAnswer = data.yourAnswer
+      phase2Result.value.scoreChange = data.scoreChange
+      phase2Result.value.wasInTop100 = data.wasInTop100
     })
 
     socket.value.on('phase2:end', (data) => {

@@ -16,6 +16,7 @@
           <div class="form-group">
             <label>員工編號</label>
             <input v-model="employeeId" ref="employeeIdInput" class="input" placeholder="輸入你的員工編號" maxlength="20"
+              autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
               required />
           </div>
 
@@ -212,7 +213,7 @@
             </button>
           </div>
 
-          <div class="quiz-status" v-if="gameStore.gamePhase === 'phase2_reveal' && myAnswer !== null">
+          <div class="quiz-status" v-if="gameStore.gamePhase === 'phase2_reveal' && gameStore.phase2Result">
             <div class="status-msg"
               :class="gameStore.phase2Result?.scoreChange > 0 ? 'msg-correct' : (gameStore.phase2Result?.scoreChange < 0 ? 'msg-wrong' : '')">
 
@@ -222,12 +223,20 @@
               </template>
 
               <template v-else-if="gameStore.phase2Result?.scoreChange < 0">
-                ❌ 答錯了！{{ gameStore.phase2Result?.scoreChange }}分 🐢
+                <template v-if="gameStore.phase2Result?.yourAnswer === null">
+                  ⏰ 未作答！{{ gameStore.phase2Result?.scoreChange }}分 🐢
+                </template>
+                <template v-else>
+                  ❌ 答錯了！{{ gameStore.phase2Result?.scoreChange }}分 🐢
+                </template>
               </template>
 
               <template v-else>
                 <span v-if="gameStore.phase2Result?.correct">
                   ✅ 答對了！(金幣題：未在百名內，無加分)
+                </span>
+                <span v-else-if="gameStore.phase2Result?.yourAnswer === null">
+                  ⏰ 未作答 (未扣分)
                 </span>
                 <span v-else>
                   ❌ 答錯了！(未扣分)
@@ -355,10 +364,19 @@ function joinGame() {
   const teamId = urlTeamId.value || 'blue'
   gameStore.joinGame(employeeId.value, teamId)
 
-  // Blur input to help prevent "Shake to Undo" on iOS
+  // Aggressively clear input undo history to prevent iOS "Shake to Undo"
   if (employeeIdInput.value) {
     employeeIdInput.value.blur()
+    // Set readonly to prevent further undo tracking
+    employeeIdInput.value.readOnly = true
+    // Clear undo stack by resetting the input value through DOM
+    const savedValue = employeeIdInput.value.value
+    employeeIdInput.value.value = ''
+    employeeIdInput.value.value = savedValue
   }
+
+  // Clear any document-level undo history
+  clearUndoHistory()
 }
 
 function handleTap() {
@@ -381,7 +399,7 @@ function handleTap() {
 }
 
 function submitAnswer(idx) {
-  if (myAnswer.value !== null || gameStore.gamePhase !== 'phase2_question') return
+  if (gameStore.gamePhase !== 'phase2_question') return
   myAnswer.value = idx
   gameStore.sendAnswer(idx)
 }
@@ -591,13 +609,32 @@ onUnmounted(() => {
 function handleUndo(e) {
   e.preventDefault()
   e.stopPropagation()
+  return false
 }
 
 function handleBeforeInput(e) {
   if (e.inputType === 'historyUndo' || e.inputType === 'historyRedo') {
     e.preventDefault()
     e.stopPropagation()
+    return false
   }
+}
+
+// Clear browser undo history to prevent iOS Shake to Undo
+function clearUndoHistory() {
+  // Remove and re-add all inputs to destroy their undo stacks
+  const inputs = document.querySelectorAll('input, textarea')
+  inputs.forEach(input => {
+    const parent = input.parentNode
+    if (!parent) return
+    const next = input.nextSibling
+    const savedValue = input.value
+    const wasReadOnly = input.readOnly
+    parent.removeChild(input)
+    parent.insertBefore(input, next)
+    input.value = savedValue
+    input.readOnly = wasReadOnly
+  })
 }
 
 // Watch for phase changes to ensure input is blurred
@@ -607,6 +644,8 @@ watch(() => gameStore.gamePhase, (newPhase) => {
     if (document.activeElement && typeof document.activeElement.blur === 'function') {
       document.activeElement.blur()
     }
+    // Clear undo history when entering shake phases
+    clearUndoHistory()
   }
 
   // Reset myAnswer when a new question starts

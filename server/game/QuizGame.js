@@ -19,10 +19,17 @@ export class QuizGame {
   start() {
     this.currentQuestionIndex = 0;
     this.timePerQuestion = this.gameManager.settings.phase2TimePerQuestion || 15;
+    this.currentQuestion = null;
+    this.answers.clear();
 
     // Reset team horse power
     this.gameManager.teams.forEach(team => {
       team.horsePower = 100;
+    });
+
+    // Reset all player quizScores for a fresh Phase 2
+    this.gameManager.playersByEmployeeId.forEach(player => {
+      player.quizScore = 0;
     });
 
     // Load default questions if none provided
@@ -180,6 +187,12 @@ export class QuizGame {
   }
 
   sendQuestion(questionData = null, customType = null) {
+    // Clear previous timer to prevent stale reveal
+    if (this.questionTimer) {
+      clearTimeout(this.questionTimer);
+      this.questionTimer = null;
+    }
+
     this.answers.clear();
 
     // Use provided question or get next from queue
@@ -196,12 +209,15 @@ export class QuizGame {
     // Use explicit override > question's own customType > 'star'
     this.currentCustomType = customType || this.currentQuestion.customType || 'star';
 
+    // questionNumber: display-friendly (0-indexed for client to show as Q1, Q2...)
+    const displayQuestionNumber = this.currentQuestionIndex - 1;
+
     const questionForClients = {
       id: this.currentQuestion.id,
       text: this.currentQuestion.text,
       options: this.currentQuestion.options,
       type: this.currentQuestion.type,
-      questionNumber: this.currentQuestionIndex,
+      questionNumber: displayQuestionNumber >= 0 ? displayQuestionNumber : 0,
       totalQuestions: this.questions.length,
       timeLimit: this.timePerQuestion,
       customType: this.currentCustomType
@@ -221,8 +237,8 @@ export class QuizGame {
   handleAnswer(socketId, data) {
     const { answerIndex } = data;
 
-    if (!this.currentQuestion || this.answers.has(socketId)) {
-      return; // No active question or already answered
+    if (!this.currentQuestion) {
+      return; // No active question
     }
 
     const player = this.gameManager.players.get(socketId);
