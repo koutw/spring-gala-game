@@ -629,7 +629,7 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   justify-content: center;
-  gap: var(--spacing-xl);
+  gap: 3.5rem;
   position: relative;
 }
 
@@ -657,7 +657,7 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   gap: var(--spacing-lg);
-  padding: var(--spacing-md) var(--spacing-lg);
+  padding: 2.5rem var(--spacing-lg) 0.5rem;
   position: relative;
   z-index: 1;
 }
@@ -673,10 +673,10 @@ onUnmounted(() => {
 
 .horse-track-bar {
   flex: 1;
-  height: 60px;
-  background: rgba(255, 255, 255, 0.1);
+  height: 100px;
+  background: rgba(255, 255, 255, 0.12);
   border-radius: var(--border-radius-full);
-  overflow: hidden;
+  overflow: visible;
   position: relative;
 }
 
@@ -686,10 +686,11 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  padding-right: var(--spacing-sm);
+  padding-right: 0.5rem;
   transition: width 0.3s ease-out;
-  min-width: 60px;
+  min-width: 80px;
   position: relative;
+  overflow: visible;
 }
 
 /* Leading team pulse effect */
@@ -751,9 +752,15 @@ onUnmounted(() => {
 }
 
 .horse-emoji {
-  font-size: 2.5rem;
+  font-size: 5rem;
   display: inline-block;
   transform: scaleX(-1);
+  position: absolute;
+  right: -0.5rem;
+  bottom: 50%;
+  transform: scaleX(-1) translateY(35%);
+  filter: drop-shadow(0 -4px 8px rgba(0,0,0,0.5));
+  line-height: 1;
 }
 
 /* Warmup Overlay */

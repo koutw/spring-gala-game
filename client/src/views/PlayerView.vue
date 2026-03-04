@@ -364,18 +364,14 @@ function joinGame() {
   const teamId = urlTeamId.value || 'blue'
   gameStore.joinGame(employeeId.value, teamId)
 
-  // Aggressively clear input undo history to prevent iOS "Shake to Undo"
+  // Disable and blur input immediately after join to remove it from iOS undo tracking
   if (employeeIdInput.value) {
     employeeIdInput.value.blur()
-    // Set readonly to prevent further undo tracking
-    employeeIdInput.value.readOnly = true
-    // Clear undo stack by resetting the input value through DOM
-    const savedValue = employeeIdInput.value.value
+    employeeIdInput.value.disabled = true
     employeeIdInput.value.value = ''
-    employeeIdInput.value.value = savedValue
   }
 
-  // Clear any document-level undo history
+  // Clear document-level undo history
   clearUndoHistory()
 }
 
@@ -581,9 +577,8 @@ onMounted(() => {
     permissionStatus.value = 'granted'
   }
 
-  // Prevent iOS "Shake to Undo" dialog
-  window.addEventListener('undo', handleUndo, { capture: true })
-  window.addEventListener('beforeinput', handleBeforeInput, { capture: true })
+  // Prevent iOS "Shake to Undo" dialog via beforeinput interception
+  document.addEventListener('beforeinput', handleBeforeInput, { capture: true })
 
   // Handle screen sleep prevention
   document.addEventListener('visibilitychange', handleVisibilityChange)
@@ -600,17 +595,10 @@ onMounted(() => {
 
 onUnmounted(() => {
   cleanupMotionSensors()
-  window.removeEventListener('undo', handleUndo, { capture: true })
-  window.removeEventListener('beforeinput', handleBeforeInput, { capture: true })
+  document.removeEventListener('beforeinput', handleBeforeInput, { capture: true })
   document.removeEventListener('visibilitychange', handleVisibilityChange)
   releaseWakeLock()
 })
-
-function handleUndo(e) {
-  e.preventDefault()
-  e.stopPropagation()
-  return false
-}
 
 function handleBeforeInput(e) {
   if (e.inputType === 'historyUndo' || e.inputType === 'historyRedo') {
@@ -620,21 +608,40 @@ function handleBeforeInput(e) {
   }
 }
 
-// Clear browser undo history to prevent iOS Shake to Undo
+// Clear document-level undo history to prevent iOS Shake to Undo dialog.
+// iOS tracks a document-wide undo stack. The most reliable way to reset it
+// is to briefly focus a blank contenteditable element, perform a no-op edit,
+// then immediately blur it — this replaces the undo stack with an empty state.
 function clearUndoHistory() {
-  // Remove and re-add all inputs to destroy their undo stacks
+  // Step 1: Blur any focused input/textarea
+  if (document.activeElement && typeof document.activeElement.blur === 'function') {
+    document.activeElement.blur()
+  }
+
+  // Step 2: Disable + clear all visible inputs so iOS stops tracking them
   const inputs = document.querySelectorAll('input, textarea')
   inputs.forEach(input => {
-    const parent = input.parentNode
-    if (!parent) return
-    const next = input.nextSibling
-    const savedValue = input.value
-    const wasReadOnly = input.readOnly
-    parent.removeChild(input)
-    parent.insertBefore(input, next)
-    input.value = savedValue
-    input.readOnly = wasReadOnly
+    input.blur()
+    input.disabled = true
+    input.value = ''
   })
+
+  // Step 3: Use a hidden contenteditable div to reset iOS undo context.
+  // Focusing a contenteditable element, making a trivial edit, then removing it
+  // causes iOS to reset its shake-to-undo tracking for the page.
+  const dummy = document.createElement('div')
+  dummy.setAttribute('contenteditable', 'true')
+  dummy.style.cssText = 'position:fixed;top:-9999px;left:-9999px;width:1px;height:1px;opacity:0;pointer-events:none;'
+  document.body.appendChild(dummy)
+  dummy.focus()
+  try {
+    // Insert then immediately delete a zero-width space to create/flush a trivial undo entry
+    document.execCommand('insertText', false, '\u200B')
+    document.execCommand('selectAll', false, null)
+    document.execCommand('delete', false, null)
+  } catch (e) { /* ignore */ }
+  dummy.blur()
+  document.body.removeChild(dummy)
 }
 
 // Watch for phase changes to ensure input is blurred
