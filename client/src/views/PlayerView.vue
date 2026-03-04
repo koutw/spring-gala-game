@@ -16,8 +16,7 @@
           <div class="form-group">
             <label>員工編號</label>
             <input v-model="employeeId" ref="employeeIdInput" class="input" placeholder="輸入你的員工編號" maxlength="20"
-              autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false"
-              @input="employeeId = employeeId.toUpperCase()" required />
+              autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false" required />
           </div>
 
           <!-- Team display (from QR code) -->
@@ -644,50 +643,52 @@ function handleBeforeInput(e) {
 }
 
 // Clear document-level undo history to prevent iOS Shake to Undo dialog.
-// iOS tracks a document-wide undo stack. The most reliable way to reset it
-// is to briefly focus a blank contenteditable element, perform a no-op edit,
-// then immediately blur it — this replaces the undo stack with an empty state.
+// Strategy: "insert then immediately undo" on a hidden <input> element.
+// This leaves the undo stack with 0 undoable items: the undo cancels the insert,
+// so iOS shake-to-undo finds nothing and won't show the dialog.
 function clearUndoHistory() {
-  // Step 1: Blur any focused input/textarea
+  // Step 1: Blur any focused element
   if (document.activeElement && typeof document.activeElement.blur === 'function') {
     document.activeElement.blur()
   }
 
-  // Step 2: Disable + clear all visible inputs so iOS stops tracking them
-  const inputs = document.querySelectorAll('input, textarea')
-  inputs.forEach(input => {
-    input.blur()
-    input.disabled = true
-    input.value = ''
+  // Step 2: Disable + clear all inputs so iOS stops tracking them
+  document.querySelectorAll('input, textarea').forEach(el => {
+    el.blur()
+    el.disabled = true
+    el.value = ''
   })
 
-  // Step 3: Use a hidden contenteditable div to reset iOS undo context.
-  // Focusing a contenteditable element, making a trivial edit, then removing it
-  // causes iOS to reset its shake-to-undo tracking for the page.
-  const dummy = document.createElement('div')
-  dummy.setAttribute('contenteditable', 'true')
+  // Step 3: insert-then-undo trick resets iOS undo stack to 0 items.
+  // Using a real <input type="text"> for better iOS WKWebView compatibility.
+  const dummy = document.createElement('input')
+  dummy.type = 'text'
+  dummy.setAttribute('autocomplete', 'off')
+  dummy.setAttribute('autocorrect', 'off')
+  dummy.setAttribute('autocapitalize', 'off')
+  dummy.setAttribute('spellcheck', 'false')
   dummy.style.cssText = 'position:fixed;top:-9999px;left:-9999px;width:1px;height:1px;opacity:0;pointer-events:none;'
   document.body.appendChild(dummy)
   dummy.focus()
   try {
-    // Insert then immediately delete a zero-width space to create/flush a trivial undo entry
-    document.execCommand('insertText', false, '\u200B')
-    document.execCommand('selectAll', false, null)
-    document.execCommand('delete', false, null)
+    document.execCommand('insertText', false, ' ')
+    document.execCommand('undo') // undo cancels the insert → net 0 undoable items
   } catch (e) { /* ignore */ }
   dummy.blur()
   document.body.removeChild(dummy)
 }
 
-// Watch for phase changes to ensure input is blurred
+// Watch for phase changes to ensure input is blurred and undo history is cleared
 watch(() => gameStore.gamePhase, (newPhase) => {
   if (newPhase === 'round2_warmup' || newPhase === 'round2') {
     // Force blur any active element to prevent shake-to-undo
     if (document.activeElement && typeof document.activeElement.blur === 'function') {
       document.activeElement.blur()
     }
-    // Clear undo history when entering shake phases
+    // Clear immediately, then retry with delays to ensure iOS processes the blur
     clearUndoHistory()
+    setTimeout(() => clearUndoHistory(), 300)
+    setTimeout(() => clearUndoHistory(), 1500)
   }
 
   // Reset myAnswer when a new question starts
