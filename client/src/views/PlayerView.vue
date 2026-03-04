@@ -111,7 +111,51 @@
         </div>
       </div>
 
-      <!-- Round 2 Warmup: Motion Permission -->
+      <!-- Round 2 Result -->
+      <div v-else-if="gameStore.gamePhase === 'round2_result'" class="result-screen">
+        <div class="result-content" v-animate="'scaleIn'">
+          <div class="result-icon">🏁</div>
+          <h1>Round 2 結束！</h1>
+
+          <div class="your-result">
+            <p>你的 Round 2 分數</p>
+            <div class="score-display">{{ gameStore.player?.round2Score ?? gameStore.score }}</div>
+          </div>
+
+          <div class="top-players">
+            <h3>🏆 Round 2 個人排行榜</h3>
+            <div v-for="(player, index) in gameStore.leaderboard?.slice(0, 5)" :key="player.id" class="top-player-item">
+              <span class="rank-badge" :class="getRankClass(index)">{{ index + 1 }}</span>
+              <span class="player-name">{{ player.employeeId }}</span>
+              <span class="player-score">{{ player.score }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Final Result (total score) -->
+      <div v-else-if="gameStore.gamePhase === 'final_result'" class="result-screen">
+        <div class="result-content" v-animate="'scaleIn'">
+          <div class="result-icon">🏆</div>
+          <h1>最終結果！</h1>
+
+          <div class="your-result">
+            <p>你的總積分</p>
+            <div class="score-display">{{ gameStore.player?.totalScore ?? gameStore.totalScore }}</div>
+          </div>
+
+          <div class="top-players">
+            <h3>🏆 個人總積分榜</h3>
+            <div v-for="(player, index) in gameStore.leaderboard?.slice(0, 5)" :key="player.id" class="top-player-item">
+              <span class="rank-badge" :class="getRankClass(index)">{{ index + 1 }}</span>
+              <span class="player-name">{{ player.employeeId }}</span>
+              <span class="player-score">{{ player.score }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+
       <div v-else-if="gameStore.gamePhase === 'round2_warmup'" class="warmup-screen">
         <div class="warmup-content" v-animate="'fadeIn'">
           <div class="warmup-icon">📱</div>
