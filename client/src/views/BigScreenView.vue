@@ -217,8 +217,38 @@
       </div>
     </div>
 
-    <!-- Round 2 / Final Result -->
-    <div v-else-if="gameStore.gamePhase === 'round2_result'" class="result-overlay final">
+    <!-- Round 2 Result (same layout as Round 1) -->
+    <div v-else-if="gameStore.gamePhase === 'round2_result'" class="result-overlay">
+      <div class="result-content">
+        <h1>🏁 Round 2 完成！</h1>
+
+        <div class="team-results">
+          <div v-for="(team, index) in sortedRound2Teams" :key="team.id" class="team-result-card"
+            :class="{ winner: index === 0 }" :style="{ '--team-color': team.color }">
+            <div class="result-rank">{{ getRankEmoji(index) }}</div>
+            <div class="team-info">
+              <span class="team-name">{{ team.name }}</span>
+              <span class="team-score">{{ team.round2Score }} 分</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="leaderboard-section">
+          <h2>🏆 Round 2 排行榜</h2>
+          <div class="leaderboard-grid">
+            <div v-for="(player, index) in gameStore.leaderboard?.slice(0, 20)" :key="player.id"
+              class="leaderboard-item" :class="getRankClass(index)">
+              <span class="rank">{{ index + 1 }}</span>
+              <span class="player-id">{{ player.employeeId }}</span>
+              <span class="player-score">{{ player.score }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Final Result (total scores with podium) -->
+    <div v-else-if="gameStore.gamePhase === 'final_result'" class="result-overlay final">
       <div class="result-content">
         <h1>🏆 最終結果</h1>
 
@@ -245,7 +275,7 @@
         </div>
 
         <div class="leaderboard-section">
-          <h2>🏆 Round 2 排行榜</h2>
+          <h2>🏆 個人總積分榜</h2>
           <div class="leaderboard-grid">
             <div v-for="(player, index) in gameStore.leaderboard?.slice(0, 20)" :key="player.id"
               class="leaderboard-item" :class="getRankClass(index)">
@@ -257,6 +287,7 @@
         </div>
       </div>
     </div>
+
   </div>
 </template>
 
@@ -335,6 +366,11 @@ const sortedTeams = computed(() => {
 // Sorted by total score
 const sortedTotalTeams = computed(() => {
   return [...(gameStore.teams || [])].sort((a, b) => (b.totalScore || 0) - (a.totalScore || 0))
+})
+
+// Sorted by round2 score
+const sortedRound2Teams = computed(() => {
+  return [...(gameStore.teams || [])].sort((a, b) => (b.round2Score || 0) - (a.round2Score || 0))
 })
 
 function getTeamCount(teamId) {

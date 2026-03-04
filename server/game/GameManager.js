@@ -32,7 +32,7 @@ export class GameManager {
     // 遊戲狀態
     this.gameState = {
       gameId: this.generateGameId(),  // 遊戲場次識別碼
-      phase: 'waiting',  // waiting, round1, round1_result, round2_warmup, round2, round2_result, finished
+      phase: 'waiting',  // waiting, round1, round1_result, round2_warmup, round2, round2_result, final_result, finished
       isRunning: false,
       currentRound: 0,
       startTime: null
@@ -653,10 +653,13 @@ export class GameManager {
   showLeaderboard(type = 'current') {
     const leaderboard = this.getLeaderboard(type);
 
-    if (this.gameState.currentRound === 1) {
+    if (type === 'round1') {
       this.gameState.phase = 'round1_result';
-    } else if (this.gameState.currentRound === 2) {
+    } else if (type === 'round2') {
       this.gameState.phase = 'round2_result';
+    } else {
+      // total
+      this.gameState.phase = 'final_result';
     }
 
     this.io.emit('leaderboard:show', {

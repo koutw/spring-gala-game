@@ -316,6 +316,14 @@ export const useGameStore = defineStore('game', () => {
     socket.value.on('leaderboard:show', (data) => {
       leaderboard.value = data.leaderboard
       teams.value = data.teams
+      // Update phase to match what server set
+      if (data.type === 'round1') {
+        gamePhase.value = 'round1_result'
+      } else if (data.type === 'round2') {
+        gamePhase.value = 'round2_result'
+      } else {
+        gamePhase.value = 'final_result'
+      }
     })
 
     // Race update (for screens)

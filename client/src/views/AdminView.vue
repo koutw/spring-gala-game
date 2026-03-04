@@ -148,6 +148,9 @@
               <button class="btn btn-secondary" @click="showLeaderboard('round1')">
                 Round 1 排行榜
               </button>
+              <button class="btn btn-secondary" @click="showLeaderboard('round2')">
+                Round 2 排行榜
+              </button>
               <button class="btn btn-secondary" @click="showLeaderboard('total')">
                 總積分排行榜
               </button>
@@ -273,17 +276,15 @@
                 <div class="q-field">
                   <label>選項</label>
                   <div v-for="(opt, optIdx) in q.options" :key="optIdx" class="option-row">
-                    <input type="radio" :name="'correct-' + q.id" :value="optIdx"
-                      v-model="q.correctIndex" :disabled="gameStore.isRunning" />
-                    <input v-model="q.options[optIdx]" class="input option-input"
-                      :disabled="gameStore.isRunning"
+                    <input type="radio" :name="'correct-' + q.id" :value="optIdx" v-model="q.correctIndex"
+                      :disabled="gameStore.isRunning" />
+                    <input v-model="q.options[optIdx]" class="input option-input" :disabled="gameStore.isRunning"
                       :placeholder="'選項 ' + (optIdx + 1)" />
                     <button v-if="q.options.length > 2" class="btn-icon btn-remove-option"
-                      @click="removeOption(idx, optIdx)" :disabled="gameStore.isRunning"
-                      title="刪除選項">✕</button>
+                      @click="removeOption(idx, optIdx)" :disabled="gameStore.isRunning" title="刪除選項">✕</button>
                   </div>
-                  <button v-if="q.options.length < 6" class="btn btn-sm btn-ghost"
-                    @click="addOption(idx)" :disabled="gameStore.isRunning">
+                  <button v-if="q.options.length < 6" class="btn btn-sm btn-ghost" @click="addOption(idx)"
+                    :disabled="gameStore.isRunning">
                     + 新增選項
                   </button>
                 </div>
@@ -293,8 +294,7 @@
                   ({{ q.options[q.correctIndex] || '-' }})
                 </div>
 
-                <button class="btn btn-sm btn-danger" @click="removeQuestion(idx)"
-                  :disabled="gameStore.isRunning">
+                <button class="btn btn-sm btn-danger" @click="removeQuestion(idx)" :disabled="gameStore.isRunning">
                   🗑️ 刪除此題
                 </button>
               </div>
@@ -364,6 +364,7 @@ const phaseLabel = computed(() => {
     round2_warmup: 'Round 2 暖身中',
     round2: 'Round 2 進行中',
     round2_result: 'R2 結果',
+    final_result: '總積分結果',
     phase2: '問答遊戲準備中',
     phase2_question: '作答時間',
     phase2_reveal: '解答公布',
