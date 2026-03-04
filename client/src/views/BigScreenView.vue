@@ -245,7 +245,7 @@
         </div>
 
         <div class="leaderboard-section">
-          <h2>🏆 個人總積分榜</h2>
+          <h2>🏆 Round 2 排行榜</h2>
           <div class="leaderboard-grid">
             <div v-for="(player, index) in gameStore.leaderboard?.slice(0, 20)" :key="player.id"
               class="leaderboard-item" :class="getRankClass(index)">
