@@ -461,16 +461,6 @@ function handleDeviceMotion(event) {
     testShakeActive.value = true
     lastShakeTime = now
 
-    // Animate test shake
-    if (shakeTestRef.value) {
-      gsap.to(shakeTestRef.value, {
-        rotation: 10,
-        duration: 0.1,
-        yoyo: true,
-        repeat: 1
-      })
-    }
-
     setTimeout(() => { testShakeActive.value = false }, 200)
     return
   }
