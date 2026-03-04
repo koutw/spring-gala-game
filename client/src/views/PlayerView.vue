@@ -16,8 +16,8 @@
           <div class="form-group">
             <label>員工編號</label>
             <input v-model="employeeId" ref="employeeIdInput" class="input" placeholder="輸入你的員工編號" maxlength="20"
-              autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
-              required />
+              autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false"
+              @input="employeeId = employeeId.toUpperCase()" required />
           </div>
 
           <!-- Team display (from QR code) -->
@@ -362,7 +362,8 @@ function getRankClass(index) {
 
 function joinGame() {
   const teamId = urlTeamId.value || 'blue'
-  gameStore.joinGame(employeeId.value, teamId)
+  const normalizedId = employeeId.value.trim().toUpperCase()
+  gameStore.joinGame(normalizedId, teamId)
 
   // Disable and blur input immediately after join to remove it from iOS undo tracking
   if (employeeIdInput.value) {
