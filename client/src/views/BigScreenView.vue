@@ -759,7 +759,7 @@ onUnmounted(() => {
   right: -0.5rem;
   bottom: 50%;
   transform: scaleX(-1) translateY(35%);
-  filter: drop-shadow(0 -4px 8px rgba(0,0,0,0.5));
+  filter: drop-shadow(0 -4px 8px rgba(0, 0, 0, 0.5));
   line-height: 1;
 }
 
@@ -869,26 +869,26 @@ onUnmounted(() => {
 }
 
 .leaderboard-section h2 {
-  font-size: 1.5rem;
-  margin-bottom: var(--spacing-lg);
+  font-size: 2.25rem;
+  margin-bottom: var(--spacing-xl);
 }
 
 .leaderboard-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: var(--spacing-sm);
-  max-width: 1000px;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--spacing-md);
+  max-width: 1200px;
   margin: 0 auto;
 }
 
 .leaderboard-item {
   display: flex;
   align-items: center;
-  gap: var(--spacing-sm);
-  padding: var(--spacing-sm) var(--spacing-md);
+  gap: var(--spacing-md);
+  padding: var(--spacing-md) var(--spacing-lg);
   background: rgba(255, 255, 255, 0.05);
-  border-radius: var(--border-radius-sm);
-  font-size: 0.9rem;
+  border-radius: var(--border-radius-md);
+  font-size: 1.4rem;
 }
 
 .leaderboard-item.gold {
@@ -904,8 +904,9 @@ onUnmounted(() => {
 }
 
 .leaderboard-item .rank {
-  min-width: 24px;
+  min-width: 36px;
   font-weight: 700;
+  font-size: 1.5rem;
 }
 
 .leaderboard-item .player-id {
@@ -990,13 +991,13 @@ onUnmounted(() => {
 }
 
 .phase2-grid {
-  grid-template-columns: repeat(4, 1fr);
-  gap: var(--spacing-sm);
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--spacing-md);
 }
 
 .phase2-item {
-  padding: var(--spacing-sm) var(--spacing-md);
-  font-size: 1.25rem;
+  padding: var(--spacing-md) var(--spacing-lg);
+  font-size: 1.4rem;
 }
 
 .phase2-item .rank {
