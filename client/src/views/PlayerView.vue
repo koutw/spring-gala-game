@@ -55,7 +55,7 @@
       </div>
 
       <!-- Round 1: Tap Mode -->
-      <div v-else-if="gameStore.gamePhase === 'round1'" class="round1-screen">
+      <div v-else-if="['round1', 'round1_countdown'].includes(gameStore.gamePhase)" class="round1-screen">
         <div class="round-header">
           <div class="round-badge">Round 1</div>
           <div class="score-display" ref="scoreDisplayRef">
@@ -194,7 +194,7 @@
       </div>
 
       <!-- Round 2: Shake Mode -->
-      <div v-else-if="gameStore.gamePhase === 'round2'" class="round2-screen">
+      <div v-else-if="['round2', 'round2_countdown'].includes(gameStore.gamePhase)" class="round2-screen">
         <div class="round-header">
           <div class="round-badge">Round 2</div>
           <div class="score-display" ref="scoreDisplayRef">
@@ -1373,9 +1373,9 @@ watch(() => gameStore.bonusStage, (newStage) => {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(0, 0, 0, 0.82);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
 }
 
 .player-countdown-content {

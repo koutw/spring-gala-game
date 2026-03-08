@@ -31,7 +31,7 @@
     </div>
 
     <!-- Round 1: Tap Race -->
-    <div v-else-if="gameStore.gamePhase === 'round1'" class="race-overlay">
+    <div v-else-if="['round1', 'round1_countdown'].includes(gameStore.gamePhase)" class="race-overlay">
       <div class="race-header">
         <div class="round-badge">Round 1 - 點擊賽馬</div>
         <div class="race-timer">
@@ -107,7 +107,7 @@
     </div>
 
     <!-- Round 2: Shake Race -->
-    <div v-else-if="gameStore.gamePhase === 'round2'" class="race-overlay">
+    <div v-else-if="['round2', 'round2_countdown'].includes(gameStore.gamePhase)" class="race-overlay">
       <div class="race-header">
         <div class="round-badge">Round 2 - 搖晃賽馬</div>
         <div class="race-timer">
@@ -1203,8 +1203,9 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(0, 0, 0, 0.72);
-  backdrop-filter: blur(6px);
+  background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
 }
 
 .countdown-content {
