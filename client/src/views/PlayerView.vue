@@ -6,7 +6,18 @@
 
     <!-- Join Screen -->
     <div v-if="!gameStore.player" class="join-screen">
-      <div class="join-card card-glass" v-animate="'fadeIn'">
+      <!-- Connecting State -->
+      <div v-if="gameStore.isReconnecting" class="join-card card-glass" v-animate="'fadeIn'">
+        <div class="join-header">
+          <div class="game-icon">⏳</div>
+          <h2>正在返回遊戲...</h2>
+        </div>
+        <p class="waiting-hint">
+          重整連線中，請稍候
+        </p>
+      </div>
+
+      <div v-else class="join-card card-glass" v-animate="'fadeIn'">
         <div class="join-header">
           <div class="game-icon">🏇</div>
           <h1>加入遊戲</h1>
@@ -421,15 +432,9 @@ function joinGame() {
   const normalizedId = employeeId.value.trim().toUpperCase()
   gameStore.joinGame(normalizedId, teamId)
 
-  // Disable and blur input immediately after join to remove it from iOS undo tracking
-  if (employeeIdInput.value) {
-    employeeIdInput.value.blur()
-    employeeIdInput.value.disabled = true
-    employeeIdInput.value.value = ''
-  }
-
-  // Clear document-level undo history
-  clearUndoHistory()
+  // 標記需要 reload 以清除 iOS Undo Stack
+  sessionStorage.setItem('needsUndoClearReload', 'true')
+  gameStore.isReconnecting = true // 立即顯示返回遊戲介面
 }
 
 function handleTap() {
@@ -627,9 +632,6 @@ onMounted(() => {
     permissionStatus.value = 'granted'
   }
 
-  // Prevent iOS "Shake to Undo" dialog via beforeinput interception
-  document.addEventListener('beforeinput', handleBeforeInput, { capture: true })
-
   // Handle screen sleep prevention
   document.addEventListener('visibilitychange', handleVisibilityChange)
   // Request wake lock if player is already logged in (e.g. on refresh)
@@ -645,69 +647,17 @@ onMounted(() => {
 
 onUnmounted(() => {
   cleanupMotionSensors()
-  document.removeEventListener('beforeinput', handleBeforeInput, { capture: true })
   document.removeEventListener('visibilitychange', handleVisibilityChange)
   releaseWakeLock()
 })
 
-function handleBeforeInput(e) {
-  if (e.inputType === 'historyUndo' || e.inputType === 'historyRedo') {
-    e.preventDefault()
-    e.stopPropagation()
-    return false
-  }
-}
-
-// Clear document-level undo history to prevent iOS Shake to Undo dialog.
-// Strategy: Use a password input. iOS disables shake-to-undo for password fields.
-// Focusing a password field and making a change clears the global undo stack.
-function clearUndoHistory() {
-  // Step 1: Blur any focused element
-  if (document.activeElement && typeof document.activeElement.blur === 'function') {
-    document.activeElement.blur()
-  }
-
-  // Step 2: Change existing inputs' type to password before disabling to force iOS to drop their undo context
-  document.querySelectorAll('input, textarea').forEach(el => {
-    try {
-      if (el.type === 'text') {
-        el.type = 'password'
-      }
-    } catch(e) {}
-    el.blur()
-    el.disabled = true
-    el.value = ''
-  })
-
-  // Step 3: Global undo context override
-  const dummy = document.createElement('input')
-  dummy.type = 'password'
-  dummy.setAttribute('autocomplete', 'off')
-  dummy.setAttribute('autocorrect', 'off')
-  dummy.setAttribute('autocapitalize', 'off')
-  dummy.setAttribute('spellcheck', 'false')
-  dummy.style.cssText = 'position:fixed;top:-9999px;left:-9999px;width:1px;height:1px;opacity:0;pointer-events:none;'
-  document.body.appendChild(dummy)
-  dummy.focus()
-  try {
-    document.execCommand('insertText', false, ' ')
-    // We intentionally do NOT call 'undo' here, as that would populate the Redo stack
-  } catch (e) { /* ignore */ }
-  dummy.blur()
-  document.body.removeChild(dummy)
-}
-
-// Watch for phase changes to ensure input is blurred and undo history is cleared
+// Watch for phase changes
 watch(() => gameStore.gamePhase, (newPhase) => {
   if (newPhase === 'round2_warmup' || newPhase === 'round2') {
-    // Force blur any active element to prevent shake-to-undo
+    // Force blur any active element just in case
     if (document.activeElement && typeof document.activeElement.blur === 'function') {
       document.activeElement.blur()
     }
-    // Clear immediately, then retry with delays to ensure iOS processes the blur
-    clearUndoHistory()
-    setTimeout(() => clearUndoHistory(), 300)
-    setTimeout(() => clearUndoHistory(), 1500)
   }
 
   // Reset myAnswer when a new question starts
@@ -720,6 +670,12 @@ watch(() => gameStore.gamePhase, (newPhase) => {
 watch(() => gameStore.player, (newPlayer) => {
   if (newPlayer) {
     requestWakeLock()
+
+    // 檢查是否需要為了清除 iOS Undo 紀錄而 reload
+    if (sessionStorage.getItem('needsUndoClearReload') === 'true') {
+      sessionStorage.removeItem('needsUndoClearReload')
+      window.location.reload()
+    }
   } else {
     releaseWakeLock()
   }

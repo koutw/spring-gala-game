@@ -11,6 +11,9 @@ export const useGameStore = defineStore('game', () => {
   const player = ref(null)
   const team = ref(null)
 
+  // Connection UI state
+  const isReconnecting = ref(false)
+
   // Game state
   const gamePhase = ref('waiting') // waiting, round1, round1_result, round2_warmup, round2, round2_result, finished
   const isRunning = ref(false)
@@ -85,6 +88,7 @@ export const useGameStore = defineStore('game', () => {
 
     // Player events
     socket.value.on('player:joined', (data) => {
+      isReconnecting.value = false
       player.value = data.player
       team.value = data.team
       // Use quizScore if in Phase 2, round2Score if in Round 2, otherwise round1Score
@@ -116,6 +120,7 @@ export const useGameStore = defineStore('game', () => {
     socket.value.on('game:reset', (data) => {
       console.log('Game reset! New ID:', data.gameId)
       gameId.value = data.gameId
+      isReconnecting.value = false
       player.value = null
       team.value = null
       score.value = 0
@@ -127,6 +132,7 @@ export const useGameStore = defineStore('game', () => {
     // 被踢出事件（同 employeeId 在其他裝置登入）
     socket.value.on('player:kicked', (data) => {
       console.log('Kicked:', data.reason)
+      isReconnecting.value = false
       player.value = null
       team.value = null
       clearSession()
@@ -478,6 +484,7 @@ export const useGameStore = defineStore('game', () => {
     const session = getSession()
     if (session && session.sessionToken) {
       console.log('Attempting auto-reconnect with sessionToken')
+      isReconnecting.value = true
       // 傳送 sessionToken 供後端驗證
       socket.value?.emit('player:join', { sessionToken: session.sessionToken })
     }
@@ -494,6 +501,7 @@ export const useGameStore = defineStore('game', () => {
     connected,
     player,
     team,
+    isReconnecting,
     gamePhase,
     isRunning,
     currentRound,
