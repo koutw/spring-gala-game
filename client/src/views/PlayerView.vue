@@ -118,7 +118,7 @@
 
           <div class="your-result">
             <p>你的 Round 2 分數</p>
-            <div class="score-display">{{ gameStore.player?.round2Score ?? gameStore.score }}</div>
+            <div class="score-display">{{ gameStore.score }}</div>
           </div>
 
           <div class="top-players">
@@ -140,7 +140,7 @@
 
           <div class="your-result">
             <p>你的總積分</p>
-            <div class="score-display">{{ gameStore.player?.totalScore ?? gameStore.totalScore }}</div>
+            <div class="score-display">{{ gameStore.totalScore }}</div>
           </div>
 
           <div class="top-players">

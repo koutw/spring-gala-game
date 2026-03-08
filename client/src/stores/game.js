@@ -87,10 +87,12 @@ export const useGameStore = defineStore('game', () => {
     socket.value.on('player:joined', (data) => {
       player.value = data.player
       team.value = data.team
-      // Use quizScore if in Phase 2, otherwise round1Score
+      // Use quizScore if in Phase 2, round2Score if in Round 2, otherwise round1Score
       const currentPhase = data.gameState?.phase || 'waiting'
       if (currentPhase.startsWith('phase2')) {
         score.value = data.player.quizScore || 0
+      } else if (currentPhase.startsWith('round2')) {
+        score.value = data.player.round2Score || 0
       } else {
         score.value = data.player.round1Score || 0
       }
