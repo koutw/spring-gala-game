@@ -312,6 +312,19 @@
         </div>
       </div>
 
+      <!-- 倒數覆蓋層 -->
+      <transition name="countdown-fade">
+        <div v-if="gameStore.countdownValue !== null" class="player-countdown-overlay">
+          <div class="player-countdown-content">
+            <div class="player-countdown-label">倒數</div>
+            <div class="player-countdown-number" :key="gameStore.countdownValue">
+              {{ gameStore.countdownValue }}
+            </div>
+            <div class="player-countdown-label">開始</div>
+          </div>
+        </div>
+      </transition>
+
     </div>
   </div>
 </template>
@@ -420,6 +433,9 @@ function joinGame() {
 }
 
 function handleTap() {
+  // 倒數期間凍結點擊
+  if (gameStore.countdownValue !== null) return
+
   gameStore.sendTap()
 
   // Visual feedback
@@ -1347,5 +1363,77 @@ watch(() => gameStore.bonusStage, (newStage) => {
 
 .msg-wrong {
   color: var(--danger);
+}
+
+/* ========== 玩家倒數覆蓋層 ========== */
+.player-countdown-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.82);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+.player-countdown-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+  text-align: center;
+}
+
+.player-countdown-label {
+  font-size: 2.2rem;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  color: rgba(255, 255, 255, 0.9);
+  line-height: 1;
+}
+
+.player-countdown-number {
+  font-size: 11rem;
+  font-weight: 900;
+  line-height: 1;
+  background: linear-gradient(135deg, #6C5CE7, #fd79a8, #fdcb6e);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  filter: drop-shadow(0 0 40px rgba(108, 92, 231, 0.9));
+  animation: player-countdown-pop 1s ease-out;
+}
+
+@keyframes player-countdown-pop {
+  0% {
+    transform: scale(1.8);
+    opacity: 0;
+  }
+
+  40% {
+    transform: scale(0.92);
+    opacity: 1;
+  }
+
+  70% {
+    transform: scale(1.06);
+  }
+
+  100% {
+    transform: scale(1);
+  }
+}
+
+/* Fade transition */
+.countdown-fade-enter-active,
+.countdown-fade-leave-active {
+  transition: opacity 0.4s ease;
+}
+
+.countdown-fade-enter-from,
+.countdown-fade-leave-to {
+  opacity: 0;
 }
 </style>

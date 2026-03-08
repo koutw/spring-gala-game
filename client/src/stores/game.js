@@ -35,6 +35,7 @@ export const useGameStore = defineStore('game', () => {
   const buttonPosition = ref(0)    // Round 1 按鈕位置
   const motionType = ref('twist')  // Round 2 搖晃類型
   const roundTimeLeft = ref(0)     // 回合剩餘時間（秒）
+  const countdownValue = ref(null) // 倒數值（null=無倒數，1-10=倒數中）
 
   // Teams and players
   const teams = ref([])
@@ -196,6 +197,7 @@ export const useGameStore = defineStore('game', () => {
 
     // Game events
     socket.value.on('game:start', (data) => {
+      countdownValue.value = null  // 清除倒數
       gamePhase.value = data.phase
       currentRound.value = data.round || 0
       isRunning.value = true
@@ -206,12 +208,21 @@ export const useGameStore = defineStore('game', () => {
       roundTimeLeft.value = data.duration || 30
     })
 
+    // 倒數事件
+    socket.value.on('game:countdown', (data) => {
+      countdownValue.value = data.value
+      // 將 phase 設為 countdown 狀態，讓大螢幕顯示悸目覆蓋
+      gamePhase.value = `round${data.round}_countdown`
+    })
+
     socket.value.on('game:stop', () => {
+      countdownValue.value = null
       isRunning.value = false
     })
 
     // Round 1 events
     socket.value.on('round1:start', (data) => {
+      countdownValue.value = null
       gamePhase.value = 'round1'
       currentRound.value = 1
       isRunning.value = true
@@ -234,6 +245,7 @@ export const useGameStore = defineStore('game', () => {
 
     // Round 2 events
     socket.value.on('round2:start', (data) => {
+      countdownValue.value = null
       gamePhase.value = 'round2'
       currentRound.value = 2
       isRunning.value = true
@@ -497,6 +509,7 @@ export const useGameStore = defineStore('game', () => {
     buttonPosition,
     motionType,
     roundTimeLeft,
+    countdownValue,
     teams,
     playerCount,
     adminAuthenticated,

@@ -12,6 +12,9 @@ export class QuizGame {
     this.questions = [];
     this.timePerQuestion = 15; // seconds
 
+    // Incremental distribution: avoids O(N) full-scan per answer
+    this.distribution = [];
+
     // Load defaults so admin can see/edit them before game starts
     this.loadDefaultQuestions();
   }
@@ -21,13 +24,10 @@ export class QuizGame {
     this.timePerQuestion = this.gameManager.settings.phase2TimePerQuestion || 15;
     this.currentQuestion = null;
     this.answers.clear();
-
-    // Reset team horse power
-    this.gameManager.teams.forEach(team => {
-      team.horsePower = 100;
-    });
+    this.distribution = [];
 
     // Reset all player quizScores for a fresh Phase 2
+    // (quizScore is now always defined on the player object from birth)
     this.gameManager.playersByEmployeeId.forEach(player => {
       player.quizScore = 0;
     });
@@ -194,6 +194,7 @@ export class QuizGame {
     }
 
     this.answers.clear();
+    this.distribution = []; // Reset incremental distribution for new question
 
     // Use provided question or get next from queue
     if (questionData) {
@@ -208,6 +209,9 @@ export class QuizGame {
 
     // Use explicit override > question's own customType > 'star'
     this.currentCustomType = customType || this.currentQuestion.customType || 'star';
+
+    // Initialize distribution array for this question
+    this.distribution = Array(this.currentQuestion.options.length).fill(0);
 
     // questionNumber: display-friendly (0-indexed for client to show as Q1, Q2...)
     const displayQuestionNumber = this.currentQuestionIndex - 1;
@@ -244,31 +248,36 @@ export class QuizGame {
     const player = this.gameManager.players.get(socketId);
     if (!player) return;
 
+    // If player is changing their answer, undo the previous distribution increment (O(1))
+    const prevAnswer = this.answers.get(socketId);
+    if (prevAnswer !== undefined && this.distribution[prevAnswer.answerIndex] > 0) {
+      this.distribution[prevAnswer.answerIndex]--;
+    }
+
+    // Record answer (keyed by socketId; also stores employeeId for post-reconnect lookup)
     this.answers.set(socketId, {
       answerIndex,
       timestamp: Date.now(),
       playerId: socketId,
+      employeeId: player.employeeId,
       teamId: player.teamId
     });
+
+    // Increment distribution for new answer (O(1))
+    if (answerIndex >= 0 && answerIndex < this.distribution.length) {
+      this.distribution[answerIndex]++;
+    }
 
     // Notify player that answer was received
     this.gameManager.io.to(socketId).emit('phase2:answered', {
       answerIndex
     });
 
-    // Calculate distribution
-    const distribution = Array(this.currentQuestion.options.length).fill(0);
-    this.answers.forEach(ans => {
-      if (ans.answerIndex >= 0 && ans.answerIndex < distribution.length) {
-        distribution[ans.answerIndex]++;
-      }
-    });
-
-    // Update answer count for screens
+    // Broadcast updated counts to big screens (distribution is O(1) incremental now)
     this.gameManager.broadcastToScreens('phase2:answerCount', {
       answered: this.answers.size,
       total: this.gameManager.players.size,
-      distribution
+      distribution: [...this.distribution]
     });
   }
 
@@ -280,19 +289,28 @@ export class QuizGame {
 
     // 處理計分邏輯
     // A. 無敵星星題 (star): 答對 +1 分
-    // B. 金幣題 (coin): 搶答，前 100 名答對 +1 分
-    // C. 龜殼題 (shell): 答錯或未作答 -1 分，且允許負分
+    // B. 金幣題 (coin): 搶答，前 100 名答對 +1 分（依作答時間排序）
+    // C. 龜殼題 (shell): 答錯或未作答 -1 分，允許負分
 
-    // Sort answers by timestamp for coin (fastest first)
-    const sortedAnswers = Array.from(this.answers.values()).sort((a, b) => a.timestamp - b.timestamp);
+    // coin 題才需要依時間排序，star/shell 與順序無關
+    const answers = Array.from(this.answers.values());
+    const sortedAnswers = questionType === 'coin'
+      ? answers.sort((a, b) => a.timestamp - b.timestamp)
+      : answers;
+
     let correctCount = 0;
 
-    // 記錄有作答的玩家
-    const answeredPlayers = new Set();
+    // 以 employeeId 追蹤有作答的玩家，避免重連後 socketId 變更造成誤判
+    const answeredEmployeeIds = new Set();
 
     sortedAnswers.forEach((answer) => {
-      answeredPlayers.add(answer.playerId);
-      const player = this.gameManager.players.get(answer.playerId);
+      answeredEmployeeIds.add(answer.employeeId);
+
+      // 優先用 socketId 查（快速路徑），若玩家已重連則 fallback 用 employeeId
+      let player = this.gameManager.players.get(answer.playerId);
+      if (!player && answer.employeeId) {
+        player = this.gameManager.playersByEmployeeId.get(answer.employeeId);
+      }
       if (!player) return;
 
       const isCorrect = answer.answerIndex === correctIndex;
@@ -303,22 +321,21 @@ export class QuizGame {
       } else if (questionType === 'coin') {
         if (isCorrect) {
           correctCount++;
-          if (correctCount <= 100) {
-            scoreChange = 1;
-          }
+          if (correctCount <= 100) scoreChange = 1;
         }
       } else if (questionType === 'shell') {
-        if (!isCorrect) {
-          scoreChange = -1;
-        }
+        if (!isCorrect) scoreChange = -1;
       }
 
-      // 確保 player score 屬性存在
-      if (player.quizScore === undefined) player.quizScore = 0;
       player.quizScore += scoreChange;
 
-      // 發送個人結果與分數更新
-      this.gameManager.io.to(answer.playerId).emit('phase2:result', {
+      // 計算真實總分（R1 + R2 + Quiz）
+      const realTotalScore = (player.round1Score || 0) + (player.round2Score || 0) + player.quizScore;
+
+      // 用 player.id（重連後的最新 socketId）送通知
+      const currentSocketId = player.id || answer.playerId;
+
+      this.gameManager.io.to(currentSocketId).emit('phase2:result', {
         correct: isCorrect,
         correctIndex,
         yourAnswer: answer.answerIndex,
@@ -327,26 +344,25 @@ export class QuizGame {
         wasInTop100: questionType === 'coin' && isCorrect && correctCount <= 100
       });
 
-      // Update score display (Phase 2 只顯示問答分數)
-      this.gameManager.io.to(answer.playerId).emit('player:score', {
+      this.gameManager.io.to(currentSocketId).emit('player:score', {
         score: player.quizScore,
-        totalScore: player.quizScore
+        totalScore: realTotalScore
       });
     });
 
-    // 處理未作答的玩家 (僅在龜殼題時扣分)
+    // 龜殼題：未作答（含離線）的玩家一律扣 1 分
     if (questionType === 'shell') {
       this.gameManager.players.forEach((player, socketId) => {
-        if (!answeredPlayers.has(socketId) && player.teamId) { // Only process active players in a team
-          // 確保 player quizScore 屬性存在
-          if (player.quizScore === undefined) player.quizScore = 0;
+        // 用 employeeId 判斷是否已作答，避免重連後 socketId 變更造成雙重扣分
+        if (!answeredEmployeeIds.has(player.employeeId) && player.teamId) {
+          player.quizScore -= 1;
 
-          player.quizScore -= 1; // 龜殼題未作答扣 1 分
+          const realTotalScore = (player.round1Score || 0) + (player.round2Score || 0) + player.quizScore;
 
           this.gameManager.io.to(socketId).emit('phase2:result', {
             correct: false,
             correctIndex,
-            yourAnswer: null, // 未作答
+            yourAnswer: null,
             scoreChange: -1,
             newScore: player.quizScore,
             wasInTop100: false
@@ -354,17 +370,17 @@ export class QuizGame {
 
           this.gameManager.io.to(socketId).emit('player:score', {
             score: player.quizScore,
-            totalScore: player.quizScore
+            totalScore: realTotalScore
           });
         }
       });
     }
 
-    // Broadcast reveal
+    // Broadcast reveal to all (screens, admin, players)
     this.gameManager.io.emit('phase2:reveal', {
       correctIndex,
       teams: this.gameManager.getTeamsList(),
-      questionType: questionType
+      questionType
     });
 
     this.currentQuestion = null;
@@ -381,11 +397,11 @@ export class QuizGame {
     this.cleanup();
     this.gameManager.gameState.isRunning = false;
 
-    // Get final rankings based on individual player's total scores
-    // Phase 2 排行榜只計算問答分數
+    // Phase 2 排行榜：依問答分數排序，使用 employeeId 作為穩定識別碼
+    // 避免離線玩家 p.id === null 導致前端 :key 撞鍵
     const topPlayers = Array.from(this.gameManager.playersByEmployeeId.values())
       .map(p => ({
-        id: p.id,
+        id: p.employeeId,          // 穩定的 ID，不依賴連線狀態
         employeeId: p.employeeId,
         score: p.quizScore || 0,
         teamId: p.teamId

@@ -67,6 +67,9 @@ export class GameManager {
     // 定期儲存 interval ID
     this.periodicSaveInterval = null;
 
+    // 倒數計時器
+    this.countdownTimer = null;
+
     // 連接 Redis 並嘗試恢復狀態
     this.initRedis();
 
@@ -190,6 +193,11 @@ export class GameManager {
       clearInterval(this.periodicSaveInterval);
       this.periodicSaveInterval = null;
     }
+    // 清除倒數計時器
+    if (this.countdownTimer) {
+      clearInterval(this.countdownTimer);
+      this.countdownTimer = null;
+    }
     this.horseRacing.stop();
     this.quizGame.stop();
     this.quizGame.loadDefaultQuestions();
@@ -305,6 +313,7 @@ export class GameManager {
       teamId: validTeamId,
       round1Score: 0,
       round2Score: 0,
+      quizScore: 0,     // Phase 2 問答分數，確保從出生即定義
       totalScore: 0,
       joinedAt: Date.now(),
       lastActiveAt: Date.now(),
@@ -546,7 +555,9 @@ export class GameManager {
   // 處理玩家問答 (Phase 2)
   handlePlayerAnswer(socketId, data) {
     if (!this.gameState.isRunning) return;
-    if (this.gameState.phase !== 'phase2') return;
+    // Use currentRound to check phase2, since phase can change to sub-states
+    // (e.g. after showLeaderboard() changes phase away from 'phase2')
+    if (this.gameState.currentRound !== 'quiz') return;
     this.quizGame.handleAnswer(socketId, data);
   }
 
@@ -586,9 +597,36 @@ export class GameManager {
     return { success: true };
   }
 
-  // 開始遊戲
-  startGame(roundOrPhase, settings = null) {
-    if (roundOrPhase === 1) {
+  // 倒數計時後開始回合 (round = 1 or 2)
+  startCountdown(round, durationSeconds = 10) {
+    // 清除任何已存在的倒數
+    if (this.countdownTimer) {
+      clearInterval(this.countdownTimer);
+      this.countdownTimer = null;
+    }
+
+    // 廣播倒數開始（phase 設為 countdown）
+    this.gameState.phase = `round${round}_countdown`;
+    this.io.emit('game:countdown', { round, value: durationSeconds });
+    console.log(`Countdown started for Round ${round}: ${durationSeconds}s`);
+
+    let remaining = durationSeconds - 1;
+    this.countdownTimer = setInterval(() => {
+      if (remaining > 0) {
+        this.io.emit('game:countdown', { round, value: remaining });
+        remaining--;
+      } else {
+        clearInterval(this.countdownTimer);
+        this.countdownTimer = null;
+        // 倒數結束，正式開始回合
+        this._doStartRound(round);
+      }
+    }, 1000);
+  }
+
+  // 實際啟動回合（供倒數結束後呼叫）
+  _doStartRound(round) {
+    if (round === 1) {
       this.gameState.phase = 'round1';
       this.gameState.currentRound = 1;
       this.gameState.isRunning = true;
@@ -596,7 +634,7 @@ export class GameManager {
       this.horseRacing.start(1);
       this.io.emit('game:start', { phase: this.gameState.phase, round: 1 });
       console.log(`Game started: Round 1`);
-    } else if (roundOrPhase === 2) {
+    } else if (round === 2) {
       this.gameState.phase = 'round2';
       this.gameState.currentRound = 2;
       this.gameState.isRunning = true;
@@ -604,6 +642,15 @@ export class GameManager {
       this.horseRacing.start(2);
       this.io.emit('game:start', { phase: this.gameState.phase, round: 2 });
       console.log(`Game started: Round 2`);
+    }
+  }
+
+  // 開始遊戲
+  startGame(roundOrPhase, settings = null) {
+    if (roundOrPhase === 1) {
+      this.startCountdown(1);
+    } else if (roundOrPhase === 2) {
+      this.startCountdown(2);
     } else if (roundOrPhase === 'phase2') {
       this.gameState.phase = 'phase2';
       this.gameState.currentRound = 'quiz';
@@ -619,6 +666,11 @@ export class GameManager {
 
   // 停止遊戲
   stopGame() {
+    // 清除倒數計時器
+    if (this.countdownTimer) {
+      clearInterval(this.countdownTimer);
+      this.countdownTimer = null;
+    }
     if (!this.gameState.isRunning) return;
     this.gameState.isRunning = false;
     this.horseRacing.stop();

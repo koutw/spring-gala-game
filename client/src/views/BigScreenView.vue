@@ -288,6 +288,19 @@
       </div>
     </div>
 
+    <!-- 倒數覆蓋層 -->
+    <transition name="countdown-fade">
+      <div v-if="gameStore.countdownValue !== null" class="countdown-overlay">
+        <div class="countdown-content">
+          <div class="countdown-label">倒數</div>
+          <div class="countdown-number" :key="gameStore.countdownValue">
+            {{ gameStore.countdownValue }}
+          </div>
+          <div class="countdown-label">開始</div>
+        </div>
+      </div>
+    </transition>
+
   </div>
 </template>
 
@@ -1180,5 +1193,78 @@ onUnmounted(() => {
   font-size: 3rem;
   color: var(--text-secondary);
   animation: pulse 2s infinite ease-in-out;
+}
+
+/* ========== 倒數覆蓋層 ========== */
+.countdown-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.72);
+  backdrop-filter: blur(6px);
+}
+
+.countdown-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  text-align: center;
+}
+
+.countdown-label {
+  font-size: 4.5rem;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  background: linear-gradient(135deg, #fff 0%, #a0a0ff 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  text-shadow: none;
+  line-height: 1;
+}
+
+.countdown-number {
+  font-size: 22rem;
+  font-weight: 900;
+  line-height: 1;
+  background: linear-gradient(135deg, #6C5CE7, #fd79a8, #fdcb6e);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  filter: drop-shadow(0 0 60px rgba(108, 92, 231, 0.8));
+  animation: countdown-pop 1s ease-out;
+}
+
+@keyframes countdown-pop {
+  0% {
+    transform: scale(1.6);
+    opacity: 0;
+  }
+
+  40% {
+    transform: scale(0.95);
+    opacity: 1;
+  }
+
+  70% {
+    transform: scale(1.05);
+  }
+
+  100% {
+    transform: scale(1);
+  }
+}
+
+/* Fade transition */
+.countdown-fade-enter-active,
+.countdown-fade-leave-active {
+  transition: opacity 0.4s ease;
+}
+
+.countdown-fade-enter-from,
+.countdown-fade-leave-to {
+  opacity: 0;
 }
 </style>
