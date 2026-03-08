@@ -19,7 +19,7 @@
 
       <div v-else class="join-card card-glass" v-animate="'fadeIn'">
         <div class="join-header">
-          <div class="game-icon">🏇</div>
+          <div class="game-icon">🐴</div>
           <h1>加入遊戲</h1>
         </div>
 

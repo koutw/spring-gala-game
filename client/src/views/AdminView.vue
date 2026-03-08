@@ -111,7 +111,7 @@
             <div class="round-controls">
               <button class="btn btn-primary btn-large" @click="startRound(1)"
                 :disabled="gameStore.isRunning || gameStore.gamePhase === 'round1'">
-                開始 Round 1（點擊）🏇
+                開始 Round 1（點擊）🐴
               </button>
 
               <button class="btn btn-warning btn-large" @click="startWarmup"

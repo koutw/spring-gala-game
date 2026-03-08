@@ -3,7 +3,7 @@
     <!-- Waiting Screen -->
     <div v-if="gameStore.gamePhase === 'waiting'" class="waiting-overlay">
       <div class="waiting-content">
-        <h1 class="event-title">🏇 2026 Spring Gala</h1>
+        <h1 class="event-title">🐴 2026 Spring Gala</h1>
         <h2 class="event-subtitle">數位賽馬大賽</h2>
 
         <p class="scan-hint">📱 掃描 QR Code 加入隊伍</p>
@@ -59,7 +59,7 @@
               width: horse.progress + '%',
               background: horse.color
             }">
-              <span class="horse-emoji">🏇</span>
+              <img src="@/assets/running_horse.png" class="horse-emoji" alt="horse" />
               <span v-if="horse.isFinished" class="finish-celebration">🎉</span>
             </div>
           </div>
@@ -139,7 +139,7 @@
               width: horse.progress + '%',
               background: horse.color
             }">
-              <span class="horse-emoji">🏇</span>
+              <img src="@/assets/running_horse.png" class="horse-emoji" alt="horse" />
               <span v-if="horse.isFinished" class="finish-celebration">🎉</span>
             </div>
           </div>
@@ -801,15 +801,15 @@ onUnmounted(() => {
 }
 
 .horse-emoji {
-  font-size: 5rem;
+  height: 90px;
+  width: auto;
   display: inline-block;
-  transform: scaleX(-1);
   position: absolute;
-  right: -0.5rem;
+  right: -1rem;
   bottom: 50%;
-  transform: scaleX(-1) translateY(35%);
+  transform: translateY(35%);
   filter: drop-shadow(0 -4px 8px rgba(0, 0, 0, 0.5));
-  line-height: 1;
+  z-index: 10;
 }
 
 /* Warmup Overlay */
