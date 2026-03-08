@@ -659,26 +659,29 @@ function handleBeforeInput(e) {
 }
 
 // Clear document-level undo history to prevent iOS Shake to Undo dialog.
-// Strategy: "insert then immediately undo" on a hidden <input> element.
-// This leaves the undo stack with 0 undoable items: the undo cancels the insert,
-// so iOS shake-to-undo finds nothing and won't show the dialog.
+// Strategy: Use a password input. iOS disables shake-to-undo for password fields.
+// Focusing a password field and making a change clears the global undo stack.
 function clearUndoHistory() {
   // Step 1: Blur any focused element
   if (document.activeElement && typeof document.activeElement.blur === 'function') {
     document.activeElement.blur()
   }
 
-  // Step 2: Disable + clear all inputs so iOS stops tracking them
+  // Step 2: Change existing inputs' type to password before disabling to force iOS to drop their undo context
   document.querySelectorAll('input, textarea').forEach(el => {
+    try {
+      if (el.type === 'text') {
+        el.type = 'password'
+      }
+    } catch(e) {}
     el.blur()
     el.disabled = true
     el.value = ''
   })
 
-  // Step 3: insert-then-undo trick resets iOS undo stack to 0 items.
-  // Using a real <input type="text"> for better iOS WKWebView compatibility.
+  // Step 3: Global undo context override
   const dummy = document.createElement('input')
-  dummy.type = 'text'
+  dummy.type = 'password'
   dummy.setAttribute('autocomplete', 'off')
   dummy.setAttribute('autocorrect', 'off')
   dummy.setAttribute('autocapitalize', 'off')
@@ -688,7 +691,7 @@ function clearUndoHistory() {
   dummy.focus()
   try {
     document.execCommand('insertText', false, ' ')
-    document.execCommand('undo') // undo cancels the insert → net 0 undoable items
+    // We intentionally do NOT call 'undo' here, as that would populate the Redo stack
   } catch (e) { /* ignore */ }
   dummy.blur()
   document.body.removeChild(dummy)
