@@ -1,13 +1,8 @@
 <template>
   <div class="big-screen" ref="screenContainer">
     <!-- Waiting Screen -->
-    <div v-if="gameStore.gamePhase === 'waiting'" class="waiting-overlay">
+    <div v-if="gameStore.gamePhase === 'waiting'" class="waiting-overlay waiting-bg">
       <div class="waiting-content">
-        <h1 class="event-title">🐴 2026 Spring Gala</h1>
-        <h2 class="event-subtitle">數位賽馬大賽</h2>
-
-        <p class="scan-hint">📱 掃描 QR Code 加入隊伍</p>
-
         <div class="qr-section">
           <div v-for="team in teamsInfo" :key="team.id" class="qr-card" :style="{ '--team-color': team.color }">
             <div class="qr-wrapper">
@@ -474,6 +469,13 @@ onUnmounted(() => {
   justify-content: center;
 }
 
+.waiting-bg {
+  background-image: url('../assets/game_bg.png');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
 .waiting-content {
   text-align: center;
 }
@@ -505,6 +507,7 @@ onUnmounted(() => {
   justify-content: center;
   gap: var(--spacing-2xl);
   margin-bottom: var(--spacing-xl);
+  margin-top: 15vh;
 }
 
 .qr-card {
