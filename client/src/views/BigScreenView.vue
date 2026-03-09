@@ -59,7 +59,7 @@
               width: horse.progress + '%',
               background: horse.color
             }">
-              <img src="@/assets/running_horse.png" class="horse-emoji" alt="horse" />
+              <img src="../assets/running_horse.png" class="horse-emoji" alt="horse" />
               <span v-if="horse.isFinished" class="finish-celebration">🎉</span>
             </div>
           </div>
@@ -139,7 +139,7 @@
               width: horse.progress + '%',
               background: horse.color
             }">
-              <img src="@/assets/running_horse.png" class="horse-emoji" alt="horse" />
+              <img src="../assets/running_horse.png" class="horse-emoji" alt="horse" />
               <span v-if="horse.isFinished" class="finish-celebration">🎉</span>
             </div>
           </div>
