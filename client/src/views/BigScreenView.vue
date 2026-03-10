@@ -1206,9 +1206,11 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(0, 0, 0, 0.4);
+  background: radial-gradient(circle at center, rgba(0, 0, 0, 0.6) 0%, rgba(0, 0, 0, 0.2) 40%, transparent 70%);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
+  mask-image: radial-gradient(ellipse at center, black 0%, black 30%, transparent 70%);
+  -webkit-mask-image: radial-gradient(ellipse at center, black 0%, black 30%, transparent 70%);
 }
 
 .countdown-content {
