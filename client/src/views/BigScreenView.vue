@@ -309,9 +309,9 @@ const screenContainer = ref(null)
 
 // Teams info
 const teamsInfo = [
-  { id: 'blue', name: '藍隊', color: '#3B82F6' },
-  { id: 'yellow', name: '黃隊', color: '#EAB308' },
-  { id: 'red', name: '紅隊', color: '#EF4444' }
+  { id: 'blue', name: 'Team Jack', color: '#3B82F6' },
+  { id: 'yellow', name: 'Team Iris', color: '#EAB308' },
+  { id: 'red', name: 'Team Jason', color: '#EF4444' }
 ]
 
 // Generate QR code URL for each team

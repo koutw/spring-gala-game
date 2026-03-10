@@ -240,9 +240,9 @@ export class GameManager {
 
   initializeTeams() {
     const defaultTeams = [
-      { id: 'blue', name: '藍隊', color: '#3B82F6', gradient: 'linear-gradient(180deg, #3B82F6 0%, #1D4ED8 100%)' },
-      { id: 'yellow', name: '黃隊', color: '#EAB308', gradient: 'linear-gradient(180deg, #EAB308 0%, #CA8A04 100%)' },
-      { id: 'red', name: '紅隊', color: '#EF4444', gradient: 'linear-gradient(180deg, #EF4444 0%, #DC2626 100%)' }
+      { id: 'blue', name: 'Team Jack', color: '#3B82F6', gradient: 'linear-gradient(180deg, #3B82F6 0%, #1D4ED8 100%)' },
+      { id: 'yellow', name: 'Team Iris', color: '#EAB308', gradient: 'linear-gradient(180deg, #EAB308 0%, #CA8A04 100%)' },
+      { id: 'red', name: 'Team Jason', color: '#EF4444', gradient: 'linear-gradient(180deg, #EF4444 0%, #DC2626 100%)' }
     ];
 
     defaultTeams.forEach(team => {

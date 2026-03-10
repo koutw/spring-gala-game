@@ -384,9 +384,9 @@ const teamColors = {
 }
 
 const teamNames = {
-  blue: '藍隊',
-  yellow: '黃隊',
-  red: '紅隊'
+  blue: 'Team Jack',
+  yellow: 'Team Iris',
+  red: 'Team Jason'
 }
 
 // Computed
