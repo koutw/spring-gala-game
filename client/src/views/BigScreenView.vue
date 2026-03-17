@@ -242,44 +242,43 @@
       </div>
     </div>
 
-    <!-- Final Result (total scores with podium) -->
-    <div v-else-if="gameStore.gamePhase === 'final_result'" class="result-overlay final">
-      <div class="result-content">
-        <h1>🏆 最終結果</h1>
+    <!-- Final Result (total scores with podium background) -->
+    <div v-else-if="gameStore.gamePhase === 'final_result'" class="final-result-podium">
+      <!-- Background image fills the entire screen -->
+      <img src="../assets/leaderboard_bg.png" class="podium-bg-img" alt="leaderboard background" />
 
-        <!-- Podium -->
-        <div class="podium">
-          <div class="podium-place second" v-if="sortedTotalTeams[1]">
-            <div class="podium-emoji">🥈</div>
-            <div class="podium-name">{{ sortedTotalTeams[1].name }}</div>
-            <div class="podium-score"></div>
-            <div class="podium-stand"></div>
-          </div>
-          <div class="podium-place first" v-if="sortedTotalTeams[0]">
-            <div class="podium-emoji">🥇</div>
-            <div class="podium-name">{{ sortedTotalTeams[0].name }}</div>
-            <div class="podium-score"></div>
-            <div class="podium-stand"></div>
-          </div>
-          <div class="podium-place third" v-if="sortedTotalTeams[2]">
-            <div class="podium-emoji">🥉</div>
-            <div class="podium-name">{{ sortedTotalTeams[2].name }}</div>
-            <div class="podium-score"></div>
-            <div class="podium-stand"></div>
-          </div>
+      <!-- Horse images placed at exact podium positions (based on 1920x1080 reference) -->
+      <!-- 1st place: center (x=505, y=590) -->
+      <div v-if="sortedTotalTeams[0]" class="podium-horse-slot" :style="{
+        left: ((505 - 170) / 1920 * 100) + '%',
+        top: ((590 - 384) / 1080 * 100) + '%'
+      }">
+        <div class="podium-team-name" :style="{ color: sortedTotalTeams[0].color }">
+          {{ sortedTotalTeams[0].name }}
         </div>
+        <img src="../assets/podium_horse.png" class="podium-horse-img" alt="1st place horse" />
+      </div>
 
-        <div class="leaderboard-section">
-          <h2>🏆 個人總積分榜</h2>
-          <div class="leaderboard-grid">
-            <div v-for="(player, index) in gameStore.leaderboard?.slice(0, 20)" :key="player.id"
-              class="leaderboard-item" :class="getRankClass(index)">
-              <span class="rank">{{ index + 1 }}</span>
-              <span class="player-id">{{ player.employeeId }}</span>
-              <span class="player-score">{{ player.score }}</span>
-            </div>
-          </div>
+      <!-- 2nd place: left (x=227, y=701) -->
+      <div v-if="sortedTotalTeams[1]" class="podium-horse-slot" :style="{
+        left: ((227 - 170) / 1920 * 100) + '%',
+        top: ((701 - 384) / 1080 * 100) + '%'
+      }">
+        <div class="podium-team-name" :style="{ color: sortedTotalTeams[1].color }">
+          {{ sortedTotalTeams[1].name }}
         </div>
+        <img src="../assets/podium_horse.png" class="podium-horse-img" alt="2nd place horse" />
+      </div>
+
+      <!-- 3rd place: right (x=780, y=800) -->
+      <div v-if="sortedTotalTeams[2]" class="podium-horse-slot" :style="{
+        left: ((780 - 170) / 1920 * 100) + '%',
+        top: ((800 - 384) / 1080 * 100) + '%'
+      }">
+        <div class="podium-team-name" :style="{ color: sortedTotalTeams[2].color }">
+          {{ sortedTotalTeams[2].name }}
+        </div>
+        <img src="../assets/podium_horse.png" class="podium-horse-img" alt="3rd place horse" />
       </div>
     </div>
 
@@ -1272,5 +1271,56 @@ onUnmounted(() => {
 .countdown-fade-enter-from,
 .countdown-fade-leave-to {
   opacity: 0;
+}
+
+/* Final Result Podium with Background Image */
+.final-result-podium {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  overflow: hidden;
+}
+
+.podium-bg-img {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+}
+
+.podium-horse-slot {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  z-index: 2;
+  /* Width matches horse image width as % of 1920 */
+  width: calc(340 / 1920 * 100%);
+}
+
+.podium-horse-img {
+  width: 100%;
+  height: auto;
+  display: block;
+  filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.5));
+}
+
+.podium-team-name {
+  font-size: clamp(0.9rem, 1.5vw, 1.6rem);
+  font-weight: 900;
+  text-align: center;
+  margin-bottom: 0.3em;
+  text-shadow:
+    0 0 8px rgba(0, 0, 0, 0.9),
+    0 2px 4px rgba(0, 0, 0, 0.8),
+    -1px -1px 0 #000,
+    1px -1px 0 #000,
+    -1px 1px 0 #000,
+    1px 1px 0 #000;
+  white-space: nowrap;
+  letter-spacing: 0.03em;
 }
 </style>
