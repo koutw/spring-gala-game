@@ -250,8 +250,8 @@
       <!-- Horse images placed at exact podium positions (based on 1920x1080 reference) -->
       <!-- 1st place: center (x=505, y=590) -->
       <div v-if="sortedTotalTeams[0]" class="podium-horse-slot" :style="{
-        left: ((505 - 170) / 1920 * 100) + '%',
-        top: ((590 - 384) / 1080 * 100) + '%'
+        left: ((515 - 170) / 1920 * 100) + '%',
+        top: ((600 - 384) / 1080 * 100) + '%'
       }">
         <div class="podium-team-name" :style="{ color: sortedTotalTeams[0].color }">
           {{ sortedTotalTeams[0].name }}
@@ -261,8 +261,8 @@
 
       <!-- 2nd place: left (x=227, y=701) -->
       <div v-if="sortedTotalTeams[1]" class="podium-horse-slot" :style="{
-        left: ((227 - 170) / 1920 * 100) + '%',
-        top: ((701 - 384) / 1080 * 100) + '%'
+        left: ((217 - 170) / 1920 * 100) + '%',
+        top: ((711 - 384) / 1080 * 100) + '%'
       }">
         <div class="podium-team-name" :style="{ color: sortedTotalTeams[1].color }">
           {{ sortedTotalTeams[1].name }}
@@ -272,13 +272,27 @@
 
       <!-- 3rd place: right (x=780, y=800) -->
       <div v-if="sortedTotalTeams[2]" class="podium-horse-slot" :style="{
-        left: ((780 - 170) / 1920 * 100) + '%',
-        top: ((800 - 384) / 1080 * 100) + '%'
+        left: ((790 - 170) / 1920 * 100) + '%',
+        top: ((810 - 384) / 1080 * 100) + '%'
       }">
         <div class="podium-team-name" :style="{ color: sortedTotalTeams[2].color }">
           {{ sortedTotalTeams[2].name }}
         </div>
         <img src="../assets/podium_horse.png" class="podium-horse-img" alt="3rd place horse" />
+      </div>
+
+      <!-- Personal Leaderboard: anchored at (1060, 60) on 1920x1080 grid -->
+      <div class="podium-leaderboard" :style="{
+        left: (1060 / 1920 * 100) + '%',
+        top: (60 / 1080 * 100) + '%'
+      }">
+        <div class="podium-lb-title">🏆 個人總積分榜</div>
+        <div v-for="(player, index) in gameStore.leaderboard?.slice(0, 20)" :key="player.id" class="podium-lb-row"
+          :class="getRankClass(index)">
+          <span class="podium-lb-rank">{{ index + 1 }}</span>
+          <span class="podium-lb-name">{{ player.employeeId }}</span>
+          <span class="podium-lb-score">{{ player.score }}</span>
+        </div>
       </div>
     </div>
 
@@ -1322,5 +1336,72 @@ onUnmounted(() => {
     1px 1px 0 #000;
   white-space: nowrap;
   letter-spacing: 0.03em;
+}
+
+/* Podium leaderboard panel */
+.podium-leaderboard {
+  position: absolute;
+  z-index: 3;
+  width: calc(860 / 1920 * 100%);
+  /* fills from x=1060 to right edge ~1920 with some padding */
+  background: rgba(0, 0, 0, 0.55);
+  border-radius: 12px;
+  padding: clamp(6px, 1vw, 14px) clamp(8px, 1.2vw, 18px);
+  backdrop-filter: blur(6px);
+}
+
+.podium-lb-title {
+  font-size: clamp(0.75rem, 1.3vw, 1.4rem);
+  font-weight: 900;
+  text-align: center;
+  margin-bottom: 0.4em;
+  color: #FFD700;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.8);
+  letter-spacing: 0.05em;
+}
+
+.podium-lb-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
+  padding: 0.18em 0.4em;
+  border-radius: 6px;
+  font-size: clamp(0.65rem, 1.05vw, 1.1rem);
+  font-weight: 600;
+  color: #fff;
+}
+
+.podium-lb-row.gold {
+  background: rgba(255, 215, 0, 0.25);
+}
+
+.podium-lb-row.silver {
+  background: rgba(192, 192, 192, 0.2);
+}
+
+.podium-lb-row.bronze {
+  background: rgba(205, 127, 50, 0.2);
+}
+
+.podium-lb-rank {
+  min-width: 1.6em;
+  font-weight: 800;
+  text-align: right;
+  color: #ddd;
+}
+
+.podium-lb-name {
+  flex: 1;
+  text-align: left;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.podium-lb-score {
+  font-weight: 800;
+  color: #FFD700;
+  min-width: 2.5em;
+  text-align: right;
 }
 </style>
