@@ -251,7 +251,7 @@
       <!-- 1st place: center (x=505, y=590) -->
       <div v-if="sortedTotalTeams[0]" class="podium-horse-slot" :style="{
         left: ((515 - 170) / 1920 * 100) + '%',
-        top: ((600 - 384) / 1080 * 100) + '%'
+        top: ((520 - 384) / 1080 * 100) + '%'
       }">
         <div class="podium-team-name" :style="{ color: sortedTotalTeams[0].color }">
           {{ sortedTotalTeams[0].name }}
@@ -262,7 +262,7 @@
       <!-- 2nd place: left (x=227, y=701) -->
       <div v-if="sortedTotalTeams[1]" class="podium-horse-slot" :style="{
         left: ((217 - 170) / 1920 * 100) + '%',
-        top: ((711 - 384) / 1080 * 100) + '%'
+        top: ((631 - 384) / 1080 * 100) + '%'
       }">
         <div class="podium-team-name" :style="{ color: sortedTotalTeams[1].color }">
           {{ sortedTotalTeams[1].name }}
@@ -273,7 +273,7 @@
       <!-- 3rd place: right (x=780, y=800) -->
       <div v-if="sortedTotalTeams[2]" class="podium-horse-slot" :style="{
         left: ((790 - 170) / 1920 * 100) + '%',
-        top: ((810 - 384) / 1080 * 100) + '%'
+        top: ((730 - 384) / 1080 * 100) + '%'
       }">
         <div class="podium-team-name" :style="{ color: sortedTotalTeams[2].color }">
           {{ sortedTotalTeams[2].name }}
@@ -1323,7 +1323,7 @@ onUnmounted(() => {
 }
 
 .podium-team-name {
-  font-size: clamp(0.9rem, 1.5vw, 1.6rem);
+  font-size: clamp(1.8rem, 3vw, 3.2rem);
   font-weight: 900;
   text-align: center;
   margin-bottom: 0.3em;
@@ -1351,7 +1351,7 @@ onUnmounted(() => {
 }
 
 .podium-lb-title {
-  font-size: clamp(0.75rem, 1.3vw, 1.4rem);
+  font-size: clamp(1.5rem, 2.6vw, 2.8rem);
   font-weight: 900;
   text-align: center;
   margin-bottom: 0.4em;
@@ -1366,7 +1366,7 @@ onUnmounted(() => {
   gap: 0.5em;
   padding: 0.18em 0.4em;
   border-radius: 6px;
-  font-size: clamp(0.65rem, 1.05vw, 1.1rem);
+  font-size: clamp(1.3rem, 2.1vw, 2.2rem);
   font-weight: 600;
   color: #fff;
 }
