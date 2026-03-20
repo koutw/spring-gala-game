@@ -29,9 +29,8 @@
     <div v-else-if="['round1', 'round1_countdown'].includes(gameStore.gamePhase)" class="race-overlay">
       <div class="race-header">
         <div class="round-badge">Round 1 - 點擊賽馬</div>
-        <div class="race-timer">
-          ⏱️ <span class="timer-value" :class="{ 'timer-warning': gameStore.roundTimeLeft <= 5 }">{{
-            gameStore.roundTimeLeft }}</span>s
+        <div class="race-timer" v-if="gameStore.gamePhase === 'round1'">
+          ⏱️ <span class="timer-value" :class="{ 'timer-warning': gameStore.roundTimeLeft <= 5 }">{{ gameStore.roundTimeLeft }}</span>s
         </div>
         <div class="bonus-display" v-if="currentBonusStage > 0">
           🔥 BONUS x2
@@ -105,9 +104,8 @@
     <div v-else-if="['round2', 'round2_countdown'].includes(gameStore.gamePhase)" class="race-overlay">
       <div class="race-header">
         <div class="round-badge">Round 2 - 搖晃賽馬</div>
-        <div class="race-timer">
-          ⏱️ <span class="timer-value" :class="{ 'timer-warning': gameStore.roundTimeLeft <= 5 }">{{
-            gameStore.roundTimeLeft }}</span>s
+        <div class="race-timer" v-if="gameStore.gamePhase === 'round2'">
+          ⏱️ <span class="timer-value" :class="{ 'timer-warning': gameStore.roundTimeLeft <= 5 }">{{ gameStore.roundTimeLeft }}</span>s
         </div>
         <div class="motion-hint">
           {{ currentMotionType === 'twist' ? '🔄 搖晃手機' : '⬆️ 上下搖晃' }}
