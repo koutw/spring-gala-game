@@ -731,9 +731,13 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   gap: var(--spacing-sm);
-  min-width: 120px;
+  width: 200px;
+  flex-shrink: 0;
   font-size: 1.25rem;
   font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .horse-track-bar {
